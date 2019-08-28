@@ -114,13 +114,43 @@ namespace Unity.Serialization.Json
 
         public VisitStatus Visit<TProperty, TContainer, TValue>(IPropertyVisitor visitor, TProperty property, ref TContainer container, ref TValue value, ref ChangeTracker changeTracker) where TProperty : IProperty<TContainer, TValue>
         {
-            if (typeof(TValue).IsEnum)
-            {
-                Append(property, value, (builder, v) => { builder.Append((int) (object) v); });
-                return VisitStatus.Handled;
-            }
+            if (!typeof(TValue).IsEnum)
+                return VisitStatus.Unhandled;
 
-            return VisitStatus.Unhandled;
+            Append(property, value, (builder, v) =>
+            {
+                var underlyingType = Enum.GetUnderlyingType(typeof(TValue));
+                switch (Type.GetTypeCode(underlyingType))
+                {
+                    case TypeCode.Byte:
+                        builder.Append((byte) (object) v);
+                        break;
+                    case TypeCode.Int16:
+                        builder.Append((short) (object) v);
+                        break;
+                    case TypeCode.Int32:
+                        builder.Append((int) (object) v);
+                        break;
+                    case TypeCode.Int64:
+                        builder.Append((long) (object) v);
+                        break;
+                    case TypeCode.SByte:
+                        builder.Append((sbyte) (object) v);
+                        break;
+                    case TypeCode.UInt16:
+                        builder.Append((ushort) (object) v);
+                        break;
+                    case TypeCode.UInt32:
+                        builder.Append((uint) (object) v);
+                        break;
+                    case TypeCode.UInt64:
+                        builder.Append((ulong) (object) v);
+                        break;
+                    default:
+                        throw new InvalidOperationException($"Unable to serialize enum value: {v} of type {typeof(TValue).FullName}.");
+                }
+            });
+            return VisitStatus.Handled;
         }
     }
 }

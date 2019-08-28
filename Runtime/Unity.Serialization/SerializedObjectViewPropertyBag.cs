@@ -188,7 +188,7 @@ namespace Unity.Serialization
             public void SetCount(ref SerializedObjectView container, int count) => throw new InvalidOperationException("Property is ReadOnly");
             public void Clear(ref SerializedObjectView container) => throw new InvalidOperationException("Property is ReadOnly");
 
-            public void GetPropertyAtIndex<TGetter>(ref SerializedObjectView container, int index, ref ChangeTracker changeTracker, TGetter getter)
+            public void GetPropertyAtIndex<TGetter>(ref SerializedObjectView container, int index, ref ChangeTracker changeTracker, ref TGetter getter)
                 where TGetter : ICollectionElementPropertyGetter<SerializedObjectView>
             {
                 switch (m_Elements[index].Type)
