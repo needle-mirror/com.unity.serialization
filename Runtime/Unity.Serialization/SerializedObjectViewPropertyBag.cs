@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using Unity.Properties;
 
@@ -235,8 +236,9 @@ namespace Unity.Serialization
 
         static SerializedObjectViewPropertyBag()
         {
-            TypeConversion.Register<SerializedValueView, Guid>(v => new Guid(v.AsStringView().ToString()));
             TypeConversion.Register<SerializedStringView, Guid>(v => new Guid(v.ToString()));
+            TypeConversion.Register<SerializedStringView, DirectoryInfo>(v => new DirectoryInfo(v.ToString()));
+            TypeConversion.Register<SerializedStringView, FileInfo>(v => new FileInfo(v.ToString()));
             TypeConversion.Register<SerializedStringView, string>(v => v.ToString());
             TypeConversion.Register<SerializedStringView, char>(v => v[0]);
         }

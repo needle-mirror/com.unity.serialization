@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.IO;
 using Unity.Properties;
 
 namespace Unity.Serialization.Json
@@ -8,6 +9,8 @@ namespace Unity.Serialization.Json
         , IVisitAdapterPrimitives
         , IVisitAdapter<string>
         , IVisitAdapter<Guid>
+        , IVisitAdapter<DirectoryInfo>
+        , IVisitAdapter<FileInfo>
         , IVisitAdapter
     {
         public JsonPrimitiveAdapter(JsonVisitor visitor) : base(visitor)
@@ -112,6 +115,20 @@ namespace Unity.Serialization.Json
             return VisitStatus.Handled;
         }
 
+        public VisitStatus Visit<TProperty, TContainer>(IPropertyVisitor visitor, TProperty property, ref TContainer container, ref DirectoryInfo value, ref ChangeTracker changeTracker)
+            where TProperty : IProperty<TContainer, DirectoryInfo>
+        {
+            Append(property, value, (builder, v) => { builder.Append(EncodeJsonString(v.GetRelativePath())); });
+            return VisitStatus.Handled;
+        }
+
+        public VisitStatus Visit<TProperty, TContainer>(IPropertyVisitor visitor, TProperty property, ref TContainer container, ref FileInfo value, ref ChangeTracker changeTracker)
+            where TProperty : IProperty<TContainer, FileInfo>
+        {
+            Append(property, value, (builder, v) => { builder.Append(EncodeJsonString(v.GetRelativePath())); });
+            return VisitStatus.Handled;
+        }
+
         public VisitStatus Visit<TProperty, TContainer, TValue>(IPropertyVisitor visitor, TProperty property, ref TContainer container, ref TValue value, ref ChangeTracker changeTracker) where TProperty : IProperty<TContainer, TValue>
         {
             if (!typeof(TValue).IsEnum)
@@ -151,6 +168,34 @@ namespace Unity.Serialization.Json
                 }
             });
             return VisitStatus.Handled;
+        }
+    }
+
+    static class StringExtensions
+    {
+        public static string ToForwardSlash(this string value)
+        {
+            return value.Replace('\\', '/');
+        }
+    }
+
+    static class DirectoryInfoExtensions
+    {
+        public static string GetRelativePath(this DirectoryInfo directoryInfo)
+        {
+            var relativePath = new DirectoryInfo(".").FullName.ToForwardSlash();
+            var path = directoryInfo.FullName.ToForwardSlash();
+            return path.StartsWith(relativePath) ? path.Substring(relativePath.Length).TrimStart('/') : path;
+        }
+    }
+
+    static class FileInfoExtensions
+    {
+        public static string GetRelativePath(this FileInfo fileInfo)
+        {
+            var relativePath = new DirectoryInfo(".").FullName.ToForwardSlash();
+            var path = fileInfo.FullName.ToForwardSlash();
+            return path.StartsWith(relativePath) ? path.Substring(relativePath.Length).TrimStart('/') : path;
         }
     }
 }
