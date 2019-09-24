@@ -45,7 +45,10 @@ namespace Unity.Serialization.Json
         /// </summary>
         public JsonVisitor()
         {
+            AddAdapter(new JsonUnityObjectAdapter(this));
             AddAdapter(new JsonPrimitiveAdapter(this));
+            AddAdapter(new JsonDirectoryInfoAdapter(this));
+            AddAdapter(new JsonFileInfoAdapter(this));
         }
 
         /// <summary>

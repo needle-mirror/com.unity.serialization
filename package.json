@@ -1,10 +1,10 @@
 {
   "name": "com.unity.serialization",
-  "displayName": "Unity Serialization",
-  "version": "0.3.1-preview",
-  "unity": "2019.1",
+  "displayName": "Serialization",
+  "version": "0.4.0-preview",
+  "unity": "2019.3",
   "unityRelease": "0f1",
-  "description": "The Unity Serialization package provides utilities for high performance serialization and deserialization. The package currently only supports the JSON format.",
+  "description": "The Serialization package provides utilities for high performance serialization and deserialization. The package currently only supports the JSON format.",
   "keywords": [
     "serialization",
     "dots",
@@ -15,12 +15,12 @@
     "com.unity.collections": "0.1.1-preview",
     "com.unity.jobs": "0.1.1-preview",
     "com.unity.mathematics": "1.1.0",
-    "com.unity.properties": "0.7.1-preview",
+    "com.unity.properties": "0.8.0-preview",
     "com.unity.test-framework.performance": "1.0.9-preview"
   },
   "repository": {
     "type": "git",
     "url": "git@github.cds.internal.unity3d.com:unity/com.unity.serialization.git",
-    "revision": "9ee94bddd3cf825a366d7c144d17ec71a52b7c55"
+    "revision": "75e587a9e1bc87bfd6a41758cfd6dfdd95cce6af"
   }
 }

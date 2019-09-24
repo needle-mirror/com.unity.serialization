@@ -18,8 +18,8 @@ namespace Unity.Serialization.Json.Tests
             };
 
             var json = JsonSerialization.Serialize(src);
-            Assert.That(json.Contains(k_AbsoluteDirectory + '\"'), Is.True);
-            Assert.That(json.Contains('\"' + k_RelativeDirectory + '\"'), Is.True);
+            Assert.That(json, Does.Contain(k_AbsoluteDirectory + '\"'));
+            Assert.That(json, Does.Contain('\"' + k_RelativeDirectory + '\"'));
 
             var dst = new DirectoryInfoContainer();
             JsonSerialization.DeserializeFromString(json, ref dst);

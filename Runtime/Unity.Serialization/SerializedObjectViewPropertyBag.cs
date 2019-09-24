@@ -10,6 +10,25 @@ namespace Unity.Serialization
     /// </summary>
     class SerializedObjectViewPropertyBag : PropertyBag<SerializedObjectView>
     {
+        static SerializedObjectViewPropertyBag()
+        {
+            TypeConversion.Register<SerializedStringView, string>(v => v.ToString());
+            TypeConversion.Register<SerializedStringView, char>(v => v[0]);
+            TypeConversion.Register<SerializedStringView, Guid>(v => new Guid(v.ToString()));
+            TypeConversion.Register<SerializedStringView, DirectoryInfo>(v => new DirectoryInfo(v.ToString()));
+            TypeConversion.Register<SerializedStringView, FileInfo>(v => new FileInfo(v.ToString()));
+            TypeConversion.Register<SerializedStringView, UnityEngine.Object>((view) =>
+            {
+#if UNITY_EDITOR
+                if (UnityEditor.GlobalObjectId.TryParse(view.ToString(), out var id))
+                {
+                    return UnityEditor.GlobalObjectId.GlobalObjectIdentifierToObjectSlow(id);
+                }
+#endif
+                return null;
+            });
+        }
+
         struct SerializedObjectViewProperty : IProperty<SerializedObjectView, SerializedObjectView>
         {
             readonly SerializedStringView m_Name;
@@ -232,15 +251,6 @@ namespace Unity.Serialization
                 }
 
             }
-        }
-
-        static SerializedObjectViewPropertyBag()
-        {
-            TypeConversion.Register<SerializedStringView, Guid>(v => new Guid(v.ToString()));
-            TypeConversion.Register<SerializedStringView, DirectoryInfo>(v => new DirectoryInfo(v.ToString()));
-            TypeConversion.Register<SerializedStringView, FileInfo>(v => new FileInfo(v.ToString()));
-            TypeConversion.Register<SerializedStringView, string>(v => v.ToString());
-            TypeConversion.Register<SerializedStringView, char>(v => v[0]);
         }
 
         public override void Accept<TVisitor>(ref SerializedObjectView container, TVisitor visitor, ref ChangeTracker changeTracker)

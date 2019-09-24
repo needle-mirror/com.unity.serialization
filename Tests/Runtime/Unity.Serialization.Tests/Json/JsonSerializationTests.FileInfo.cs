@@ -18,8 +18,8 @@ namespace Unity.Serialization.Json.Tests
             };
 
             var json = JsonSerialization.Serialize(src);
-            Assert.That(json.Contains(k_AbsoluteFile + '\"'), Is.True);
-            Assert.That(json.Contains('\"' + k_RelativeFile + '\"'), Is.True);
+            Assert.That(json, Does.Contain(k_AbsoluteFile + '\"'));
+            Assert.That(json, Does.Contain('\"' + k_RelativeFile + '\"'));
 
             var dst = new FileInfoContainer();
             JsonSerialization.DeserializeFromString(json, ref dst);
