@@ -253,7 +253,7 @@ namespace Unity.Serialization
             }
         }
 
-        public override void Accept<TVisitor>(ref SerializedObjectView container, TVisitor visitor, ref ChangeTracker changeTracker)
+        public override void Accept<TVisitor>(ref SerializedObjectView container, ref TVisitor visitor, ref ChangeTracker changeTracker)
         {
             foreach (var member in container)
             {
