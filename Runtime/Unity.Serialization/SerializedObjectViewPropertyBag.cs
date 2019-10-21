@@ -27,6 +27,27 @@ namespace Unity.Serialization
 #endif
                 return null;
             });
+#if UNITY_EDITOR
+            TypeConversion.Register<SerializedStringView, UnityEditor.GlobalObjectId>((view) =>
+            {
+                if (UnityEditor.GlobalObjectId.TryParse(view.ToString(), out var id))
+                {
+                    return id;
+                }
+                return new UnityEditor.GlobalObjectId();
+            });
+            TypeConversion.Register<SerializedStringView, UnityEditor.GUID>((view) =>
+            {
+                if (UnityEditor.GUID.TryParse(view.ToString(), out var guid))
+                {
+                    return guid;
+                }
+                return new UnityEditor.GUID();
+            });
+#endif
+
+            TypeConstruction.SetExplicitConstructionMethod(() => { return new DirectoryInfo("."); });
+            TypeConstruction.SetExplicitConstructionMethod(() => { return new FileInfo("."); });
         }
 
         struct SerializedObjectViewProperty : IProperty<SerializedObjectView, SerializedObjectView>

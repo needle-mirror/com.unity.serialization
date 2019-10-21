@@ -6,6 +6,16 @@ namespace Unity.Serialization.Json.Tests
     {
         const string k_AssetPath = "Assets/Tests/test-image.asset";
 
+        class UnityObjectContainer
+        {
+            public UnityEngine.Object Object;
+        }
+
+        class GlobalObjectIdContainer
+        {
+            public UnityEditor.GlobalObjectId Id;
+        }
+
         [SetUp]
         public void CreateAssets()
         {
@@ -58,9 +68,25 @@ namespace Unity.Serialization.Json.Tests
             Assert.That(dst.Object.GetType(), Is.EqualTo(typeof(UnityEngine.Texture2D)));
         }
 
-        class UnityObjectContainer
+        [Test]
+        public void JsonSerialization_SerializeUnityObject_FromGlobalObjectId()
         {
-            public UnityEngine.Object Object;
+            var src = new GlobalObjectIdContainer
+            {
+                Id = UnityEditor.GlobalObjectId.GetGlobalObjectIdSlow(UnityEditor.AssetDatabase.LoadMainAssetAtPath(k_AssetPath))
+            };
+
+            var json = JsonSerialization.Serialize(src);
+            Assert.That(json, Does.Match("{\n    \"Id\": \"[\\w-]+\"\n}"));
+
+            var dst = new GlobalObjectIdContainer();
+            JsonSerialization.DeserializeFromString(json, ref dst);
+            Assert.That(dst.Id, Is.Not.EqualTo(new UnityEditor.GlobalObjectId()));
+
+            var obj = UnityEditor.GlobalObjectId.GlobalObjectIdentifierToObjectSlow(dst.Id);
+            Assert.That(obj, Is.Not.Null);
+            Assert.That(obj, Is.Not.False);
+            Assert.That(UnityEditor.AssetDatabase.GetAssetPath(obj), Is.EqualTo(k_AssetPath));
         }
     }
 }

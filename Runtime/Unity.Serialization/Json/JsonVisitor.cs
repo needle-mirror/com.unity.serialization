@@ -49,6 +49,9 @@ namespace Unity.Serialization.Json
             AddAdapter(new JsonPrimitiveAdapter(this));
             AddAdapter(new JsonDirectoryInfoAdapter(this));
             AddAdapter(new JsonFileInfoAdapter(this));
+#if UNITY_EDITOR
+            AddAdapter(new JsonUnityEditorGUIDAdapter(this));
+#endif
         }
 
         /// <summary>

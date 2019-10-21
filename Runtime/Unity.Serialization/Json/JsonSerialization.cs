@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 using System.Text;
 using Unity.Properties;
@@ -28,7 +27,10 @@ namespace Unity.Serialization.Json
         /// <typeparam name="TContainer">The type to deserialize.</typeparam>
         public static void DeserializeFromPath<TContainer>(string path, ref TContainer container)
         {
-            Deserialize(new SerializedObjectReader(path), ref container);
+            using (var reader = new SerializedObjectReader(path))
+            {
+                Deserialize(reader, ref container);
+            }
         }
 
         /// <summary>
@@ -41,10 +43,13 @@ namespace Unity.Serialization.Json
             where TContainer : new()
         {
             var container = new TContainer();
-            Deserialize(new SerializedObjectReader(path), ref container);
+            using (var reader = new SerializedObjectReader(path))
+            {
+                Deserialize(reader, ref container);
+            }
             return container;
         }
-        
+
         /// <summary>
         /// Deserializes the given json string and writes the data to the given container.
         /// </summary>
@@ -55,7 +60,7 @@ namespace Unity.Serialization.Json
         {
             using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(jsonString)))
             {
-                Deserialize(new SerializedObjectReader(stream), ref container);
+                DeserializeFromStream(stream, ref container);
             }
         }
 
@@ -70,19 +75,46 @@ namespace Unity.Serialization.Json
         {
             using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(jsonString)))
             {
-                var container = new TContainer();
-                Deserialize(new SerializedObjectReader(stream), ref container);
-                return container;
+                return DeserializeFromStream<TContainer>(stream);
             }
+        }
+
+        /// <summary>
+        /// Deserializes the given stream and writes the data to the given container.
+        /// </summary>
+        /// <typeparam name="TContainer">The type to deserialize.</typeparam>
+        /// <param name="stream">The stream to read from.</param>
+        /// <param name="container">The container to deserialize data in to.</param>
+        public static void DeserializeFromStream<TContainer>(Stream stream, ref TContainer container)
+        {
+            using (var reader = new SerializedObjectReader(stream))
+            {
+                Deserialize(reader, ref container);
+            }
+        }
+
+        /// <summary>
+        /// Deserializes the given stream and returns a new instance of the container.
+        /// </summary>
+        /// <typeparam name="TContainer">The type to deserialize.</typeparam>
+        /// <param name="stream">The stream to read from.</param>
+        /// <returns>A new instance of the container with based on the serialized data.</returns>
+        public static TContainer DeserializeFromStream<TContainer>(Stream stream)
+            where TContainer : new()
+        {
+            var container = new TContainer();
+            using (var reader = new SerializedObjectReader(stream))
+            {
+                Deserialize(reader, ref container);
+            }
+            return container;
         }
 
         static void Deserialize<TContainer>(SerializedObjectReader reader, ref TContainer container)
         {
-            using (reader)
-            {
-                var source = reader.ReadObject();
-                PropertyContainer.Transfer(ref container, ref source);
-            }
+            var source = reader.ReadObject();
+            PropertyContainer.Construct(ref container, ref source, new PropertyContainerConstructOptions { TypeIdentifierKey = JsonVisitor.Style.TypeInfoKey });
+            PropertyContainer.Transfer(ref container, ref source);
         }
 
         /// <summary>
