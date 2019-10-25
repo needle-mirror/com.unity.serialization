@@ -50,6 +50,30 @@ namespace Unity.Serialization.Json
             }
         }
 
+        protected void AppendJsonString<TProperty, TValue>(TProperty property, TValue value)
+            where TProperty : IProperty
+        {
+            if (value == null)
+            {
+                Append(property, value, (builder, v) => builder.Append("null"));
+            }
+            else if (typeof(TValue) == typeof(string))
+            {
+                Append(property, value as string, (builder, s) => builder.Append(EncodeJsonString(s)));
+            }
+            else
+            {
+                if (TypeConversion.TryConvert<TValue, string>(value, out var str))
+                {
+                    Append(property, str, (builder, s) => builder.Append(EncodeJsonString(s)));
+                }
+                else
+                {
+                    Append(property, value, (builder, v) => builder.Append(EncodeJsonString(v.ToString())));
+                }
+            }
+        }
+
         static readonly StringBuilder s_Builder = new StringBuilder(64);
 
         /// <summary>

@@ -1,5 +1,3 @@
-using System;
-using NUnit;
 using NUnit.Framework;
 
 namespace Unity.Serialization.Json.Tests
@@ -7,7 +5,7 @@ namespace Unity.Serialization.Json.Tests
     partial class JsonSerializationTests
     {
         [Test]
-        public void JsonSerialization_SerializeEnums()
+        public void JsonSerialization_Serialize_Enums()
         {
             var src = new EnumContainer
             {
@@ -24,17 +22,18 @@ namespace Unity.Serialization.Json.Tests
             var dst = new EnumContainer();
 
             var json = JsonSerialization.Serialize(src);
-            JsonSerialization.DeserializeFromString(json, ref dst);
-
-            Assert.That(dst.BasicEnum, Is.EqualTo(src.BasicEnum));
-            Assert.That(dst.EnumToByte, Is.EqualTo(src.EnumToByte));
-            Assert.That(dst.EnumToInt, Is.EqualTo(src.EnumToInt));
-            Assert.That(dst.EnumToLong, Is.EqualTo(src.EnumToLong));
-            Assert.That(dst.EnumToShort, Is.EqualTo(src.EnumToShort));
-            Assert.That(dst.EnumToUint, Is.EqualTo(src.EnumToUint));
-            Assert.That(dst.EnumToSByte, Is.EqualTo(src.EnumToSByte));
-            Assert.That(dst.EnumToULong, Is.EqualTo(src.EnumToULong));
-            Assert.That(dst.EnumToUShort, Is.EqualTo(src.EnumToUShort));
+            using (JsonSerialization.DeserializeFromString(json, ref dst))
+            {
+                Assert.That(dst.BasicEnum, Is.EqualTo(src.BasicEnum));
+                Assert.That(dst.EnumToByte, Is.EqualTo(src.EnumToByte));
+                Assert.That(dst.EnumToInt, Is.EqualTo(src.EnumToInt));
+                Assert.That(dst.EnumToLong, Is.EqualTo(src.EnumToLong));
+                Assert.That(dst.EnumToShort, Is.EqualTo(src.EnumToShort));
+                Assert.That(dst.EnumToUint, Is.EqualTo(src.EnumToUint));
+                Assert.That(dst.EnumToSByte, Is.EqualTo(src.EnumToSByte));
+                Assert.That(dst.EnumToULong, Is.EqualTo(src.EnumToULong));
+                Assert.That(dst.EnumToUShort, Is.EqualTo(src.EnumToUShort));
+            }
         }
 
         class EnumContainer

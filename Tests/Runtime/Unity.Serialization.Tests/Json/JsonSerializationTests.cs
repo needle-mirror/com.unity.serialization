@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
@@ -26,9 +25,10 @@ namespace Unity.Serialization.Json.Tests
             var dst = new TestStruct();
 
             var json = JsonSerialization.Serialize(src);
-            JsonSerialization.DeserializeFromString(json, ref dst);
-
-            Assert.That(src, Is.EqualTo(dst));
+            using (JsonSerialization.DeserializeFromString(json, ref dst))
+            {
+                Assert.That(src, Is.EqualTo(dst));
+            }
         }
 
         [Test]
@@ -38,9 +38,10 @@ namespace Unity.Serialization.Json.Tests
             var dst = new TestStruct();
 
             JsonSerialization.Serialize("test.json", src);
-            JsonSerialization.DeserializeFromPath("test.json", ref dst);
-
-            Assert.That(src, Is.EqualTo(dst));
+            using (JsonSerialization.DeserializeFromPath("test.json", ref dst))
+            {
+                Assert.That(src, Is.EqualTo(dst));
+            }
 
             File.Delete("test.json");
         }

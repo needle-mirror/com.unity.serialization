@@ -4,14 +4,17 @@ using Unity.Properties;
 
 namespace Unity.Serialization.Json
 {
-    class JsonPrimitiveAdapter : JsonVisitorAdapter
+    class JsonVisitorAdapterPrimitives : JsonVisitorAdapter
         , IVisitAdapterPrimitives
         , IVisitAdapter<string>
-        , IVisitAdapter<Guid>
         , IVisitAdapter
     {
-        public JsonPrimitiveAdapter(JsonVisitor visitor) : base(visitor)
+        public JsonVisitorAdapterPrimitives(JsonVisitor visitor) : base(visitor) { }
+
+        public static void RegisterTypes()
         {
+            TypeConversion.Register<SerializedStringView, string>(v => v.ToString());
+            TypeConversion.Register<SerializedStringView, char>(v => v[0]);
         }
 
         public VisitStatus Visit<TProperty, TContainer>(IPropertyVisitor visitor, TProperty property, ref TContainer container, ref sbyte value, ref ChangeTracker changeTracker)
@@ -102,13 +105,6 @@ namespace Unity.Serialization.Json
             where TProperty : IProperty<TContainer, string>
         {
             Append(property, value, (builder, v) => { builder.Append(EncodeJsonString(v)); });
-            return VisitStatus.Handled;
-        }
-
-        public VisitStatus Visit<TProperty, TContainer>(IPropertyVisitor visitor, TProperty property, ref TContainer container, ref Guid value, ref ChangeTracker changeTracker)
-            where TProperty : IProperty<TContainer, Guid>
-        {
-            Append(property, value, (builder, v) => { builder.Append(EncodeJsonString(v.ToString("N"))); });
             return VisitStatus.Handled;
         }
 

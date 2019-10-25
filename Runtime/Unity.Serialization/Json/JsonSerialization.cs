@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Text;
 using Unity.Properties;
@@ -25,11 +26,11 @@ namespace Unity.Serialization.Json
         /// <param name="path">The file path to read from.</param>
         /// <param name="container">The container to deserialize data in to.</param>
         /// <typeparam name="TContainer">The type to deserialize.</typeparam>
-        public static void DeserializeFromPath<TContainer>(string path, ref TContainer container)
+        public static VisitResult DeserializeFromPath<TContainer>(string path, ref TContainer container)
         {
             using (var reader = new SerializedObjectReader(path))
             {
-                Deserialize(reader, ref container);
+                return Deserialize(reader, ref container);
             }
         }
 
@@ -45,7 +46,10 @@ namespace Unity.Serialization.Json
             var container = new TContainer();
             using (var reader = new SerializedObjectReader(path))
             {
-                Deserialize(reader, ref container);
+                using (var result = Deserialize(reader, ref container))
+                {
+                    result.Throw();
+                }
             }
             return container;
         }
@@ -56,11 +60,11 @@ namespace Unity.Serialization.Json
         /// <param name="jsonString">The json data as a string.</param>
         /// <param name="container">The container to deserialize data in to.</param>
         /// <typeparam name="TContainer">The type to deserialize.</typeparam>
-        public static void DeserializeFromString<TContainer>(string jsonString, ref TContainer container)
+        public static VisitResult DeserializeFromString<TContainer>(string jsonString, ref TContainer container)
         {
             using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(jsonString)))
             {
-                DeserializeFromStream(stream, ref container);
+                return DeserializeFromStream(stream, ref container);
             }
         }
 
@@ -85,11 +89,11 @@ namespace Unity.Serialization.Json
         /// <typeparam name="TContainer">The type to deserialize.</typeparam>
         /// <param name="stream">The stream to read from.</param>
         /// <param name="container">The container to deserialize data in to.</param>
-        public static void DeserializeFromStream<TContainer>(Stream stream, ref TContainer container)
+        public static VisitResult DeserializeFromStream<TContainer>(Stream stream, ref TContainer container)
         {
             using (var reader = new SerializedObjectReader(stream))
             {
-                Deserialize(reader, ref container);
+                return Deserialize(reader, ref container);
             }
         }
 
@@ -105,16 +109,33 @@ namespace Unity.Serialization.Json
             var container = new TContainer();
             using (var reader = new SerializedObjectReader(stream))
             {
-                Deserialize(reader, ref container);
+                using (var result = Deserialize(reader, ref container))
+                {
+                    result.Throw();
+                }
             }
             return container;
         }
 
-        static void Deserialize<TContainer>(SerializedObjectReader reader, ref TContainer container)
+        static VisitResult Deserialize<TContainer>(SerializedObjectReader reader, ref TContainer container)
         {
             var source = reader.ReadObject();
-            PropertyContainer.Construct(ref container, ref source, new PropertyContainerConstructOptions { TypeIdentifierKey = JsonVisitor.Style.TypeInfoKey });
-            PropertyContainer.Transfer(ref container, ref source);
+            var result = VisitResult.GetPooled();
+            try
+            {
+                using (var construction = PropertyContainer.Construct(ref container, ref source, new PropertyContainerConstructOptions {TypeIdentifierKey = JsonVisitor.Style.TypeInfoKey}))
+                    result.TransferEvents(construction);
+
+                using (var transfer = PropertyContainer.Transfer(ref container, ref source))
+                    result.TransferEvents(transfer);
+            }
+            catch (Exception)
+            {
+                reader.Dispose();
+                throw;
+            }
+
+            return result;
         }
 
         /// <summary>

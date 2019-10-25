@@ -4,6 +4,14 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [0.6.0-preview] - 2019-10-25
+### Changed
+* ***Breaking change*** `JsonSerialization.Deserialize` will now return a disposable `VisitResult` containing logs, errors and exceptions that occurred during deserialization.
+* Updated `com.unity.properties` to version `0.10.0-preview`.
+
+### Added
+* Support JSON serialization of `System.DateTime` and `System.TimeSpan`.
+
 ## [0.5.1-preview] - 2019-10-21
 ### Added
 * Support JSON serialization of `UnityEditor.GlobalObjectId`.

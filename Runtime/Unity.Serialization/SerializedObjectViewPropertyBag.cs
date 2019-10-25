@@ -1,7 +1,7 @@
 ﻿using System;
-using System.IO;
 using System.Linq;
 using Unity.Properties;
+using Unity.Serialization.Json;
 
 namespace Unity.Serialization
 {
@@ -12,42 +12,11 @@ namespace Unity.Serialization
     {
         static SerializedObjectViewPropertyBag()
         {
-            TypeConversion.Register<SerializedStringView, string>(v => v.ToString());
-            TypeConversion.Register<SerializedStringView, char>(v => v[0]);
-            TypeConversion.Register<SerializedStringView, Guid>(v => new Guid(v.ToString()));
-            TypeConversion.Register<SerializedStringView, DirectoryInfo>(v => new DirectoryInfo(v.ToString()));
-            TypeConversion.Register<SerializedStringView, FileInfo>(v => new FileInfo(v.ToString()));
-            TypeConversion.Register<SerializedStringView, UnityEngine.Object>((view) =>
-            {
-#if UNITY_EDITOR
-                if (UnityEditor.GlobalObjectId.TryParse(view.ToString(), out var id))
-                {
-                    return UnityEditor.GlobalObjectId.GlobalObjectIdentifierToObjectSlow(id);
-                }
-#endif
-                return null;
-            });
-#if UNITY_EDITOR
-            TypeConversion.Register<SerializedStringView, UnityEditor.GlobalObjectId>((view) =>
-            {
-                if (UnityEditor.GlobalObjectId.TryParse(view.ToString(), out var id))
-                {
-                    return id;
-                }
-                return new UnityEditor.GlobalObjectId();
-            });
-            TypeConversion.Register<SerializedStringView, UnityEditor.GUID>((view) =>
-            {
-                if (UnityEditor.GUID.TryParse(view.ToString(), out var guid))
-                {
-                    return guid;
-                }
-                return new UnityEditor.GUID();
-            });
-#endif
-
-            TypeConstruction.SetExplicitConstructionMethod(() => { return new DirectoryInfo("."); });
-            TypeConstruction.SetExplicitConstructionMethod(() => { return new FileInfo("."); });
+            JsonVisitorAdapterPrimitives.RegisterTypes();
+            JsonVisitorAdapterSystem.RegisterTypes();
+            JsonVisitorAdapterSystemIO.RegisterTypes();
+            JsonVisitorAdapterUnityEngine.RegisterTypes();
+            JsonVisitorAdapterUnityEditor.RegisterTypes();
         }
 
         struct SerializedObjectViewProperty : IProperty<SerializedObjectView, SerializedObjectView>
@@ -335,65 +304,65 @@ namespace Unity.Serialization
 
         public override bool FindProperty<TAction>(string name, ref SerializedObjectView container, ref ChangeTracker changeTracker, ref TAction action)
         {
-           if (!container.TryGetMember(name, out var member))
-           {
-               return false;
-           }
+            if (!container.TryGetMember(name, out var member))
+            {
+                return false;
+            }
 
-           var nameView = member.Name();
-           var valueView = member.Value();
+            var nameView = member.Name();
+            var valueView = member.Value();
 
-           switch (valueView.Type)
-           {
-               case TokenType.Object:
-               {
-                   action.VisitProperty<SerializedObjectViewProperty, SerializedObjectView>(new SerializedObjectViewProperty(nameView, valueView), ref container, ref changeTracker);
-               }
-               break;
+            switch (valueView.Type)
+            {
+                case TokenType.Object:
+                {
+                    action.VisitProperty<SerializedObjectViewProperty, SerializedObjectView>(new SerializedObjectViewProperty(nameView, valueView), ref container, ref changeTracker);
+                }
+                break;
 
-               case TokenType.Array:
-               {
-                   action.VisitCollectionProperty<SerializedArrayViewProperty, SerializedArrayView>(new SerializedArrayViewProperty(nameView, valueView.AsArrayView()), ref container, ref changeTracker);
-               }
-               break;
+                case TokenType.Array:
+                {
+                    action.VisitCollectionProperty<SerializedArrayViewProperty, SerializedArrayView>(new SerializedArrayViewProperty(nameView, valueView.AsArrayView()), ref container, ref changeTracker);
+                }
+                break;
 
-               case TokenType.String:
-               {
-                   action.VisitProperty<StringViewProperty, SerializedStringView>(new StringViewProperty(nameView, valueView), ref container, ref changeTracker);
-               }
-               break;
+                case TokenType.String:
+                {
+                    action.VisitProperty<StringViewProperty, SerializedStringView>(new StringViewProperty(nameView, valueView), ref container, ref changeTracker);
+                }
+                break;
 
-               case TokenType.Primitive:
-               {
-                   var p = valueView.AsPrimitiveView();
+                case TokenType.Primitive:
+                {
+                    var p = valueView.AsPrimitiveView();
 
-                   if (p.IsIntegral())
-                   {
-                       if (p.IsSigned())
-                       {
-                           action.VisitProperty<Int64Property, long>(new Int64Property(nameView, valueView), ref container, ref changeTracker);
-                       }
-                       else
-                       {
-                           action.VisitProperty<UInt64Property, ulong>(new UInt64Property(nameView, valueView), ref container, ref changeTracker);
-                       }
-                   }
-                   else if (p.IsDecimal() || p.IsInfinity() || p.IsNaN())
-                   {
-                       action.VisitProperty<FloatProperty, float>(new FloatProperty(nameView, valueView), ref container, ref changeTracker);
-                   }
-                   else if (p.IsBoolean())
-                   {
-                       action.VisitProperty<BoolProperty, bool>(new BoolProperty(nameView, valueView), ref container, ref changeTracker);
-                   }
-               }
-                   break;
+                    if (p.IsIntegral())
+                    {
+                        if (p.IsSigned())
+                        {
+                            action.VisitProperty<Int64Property, long>(new Int64Property(nameView, valueView), ref container, ref changeTracker);
+                        }
+                        else
+                        {
+                            action.VisitProperty<UInt64Property, ulong>(new UInt64Property(nameView, valueView), ref container, ref changeTracker);
+                        }
+                    }
+                    else if (p.IsDecimal() || p.IsInfinity() || p.IsNaN())
+                    {
+                        action.VisitProperty<FloatProperty, float>(new FloatProperty(nameView, valueView), ref container, ref changeTracker);
+                    }
+                    else if (p.IsBoolean())
+                    {
+                        action.VisitProperty<BoolProperty, bool>(new BoolProperty(nameView, valueView), ref container, ref changeTracker);
+                    }
+                }
+                break;
 
-               default:
-                   throw new ArgumentOutOfRangeException();
-           }
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
 
-           return true;
+            return true;
         }
     }
 }

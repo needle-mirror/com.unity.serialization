@@ -3,19 +3,24 @@
     "references": [
         "Unity.Serialization",
         "Unity.PerformanceTesting",
-        "Unity.Collections"
-    ],
-    "optionalUnityReferences": [
-        "TestAssemblies"
+        "Unity.Collections",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "Unity.Properties"
     ],
     "includePlatforms": [
         "Editor"
     ],
     "excludePlatforms": [],
     "allowUnsafeCode": true,
-    "overrideReferences": false,
-    "precompiledReferences": [],
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
     "autoReferenced": false,
-    "defineConstraints": [],
-    "versionDefines": []
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
 }

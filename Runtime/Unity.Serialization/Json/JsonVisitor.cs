@@ -23,7 +23,7 @@ namespace Unity.Serialization.Json
             /// This can be consumed during deserialization to reconstruct the concrete type.
             /// </summary>
             public static string TypeInfoKey = "$type";
-            
+
             /// <summary>
             /// Spaces for indentation
             /// </summary>
@@ -45,13 +45,11 @@ namespace Unity.Serialization.Json
         /// </summary>
         public JsonVisitor()
         {
-            AddAdapter(new JsonUnityObjectAdapter(this));
-            AddAdapter(new JsonPrimitiveAdapter(this));
-            AddAdapter(new JsonDirectoryInfoAdapter(this));
-            AddAdapter(new JsonFileInfoAdapter(this));
-#if UNITY_EDITOR
-            AddAdapter(new JsonUnityEditorGUIDAdapter(this));
-#endif
+            AddAdapter(new JsonVisitorAdapterPrimitives(this));
+            AddAdapter(new JsonVisitorAdapterSystem(this));
+            AddAdapter(new JsonVisitorAdapterSystemIO(this));
+            AddAdapter(new JsonVisitorAdapterUnityEngine(this));
+            AddAdapter(new JsonVisitorAdapterUnityEditor(this));
         }
 
         /// <summary>
