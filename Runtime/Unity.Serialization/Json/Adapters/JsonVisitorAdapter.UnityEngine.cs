@@ -20,20 +20,17 @@ namespace Unity.Serialization.Json
 #endif
                 return default;
             });
-            TypeConversion.Register<UnityEngine.Object, string>((obj) =>
-            {
-#if UNITY_EDITOR
-                return UnityEditor.GlobalObjectId.GetGlobalObjectIdSlow(obj).ToString();
-#else
-                return default;
-#endif
-            });
         }
 
         public VisitStatus Visit<TProperty, TContainer>(IPropertyVisitor visitor, TProperty property, ref TContainer container, ref UnityEngine.Object value, ref ChangeTracker changeTracker)
             where TProperty : IProperty<TContainer, UnityEngine.Object>
         {
-            AppendJsonString(property, value);
+#if UNITY_EDITOR
+            var obj = value as UnityEngine.Object;
+            AppendJsonString(property, UnityEditor.GlobalObjectId.GetGlobalObjectIdSlow(obj).ToString());
+#else
+            AppendJsonString(property, null);
+#endif
             return VisitStatus.Override;
         }
 
@@ -45,7 +42,12 @@ namespace Unity.Serialization.Json
                 return VisitStatus.Unhandled;
             }
 
-            AppendJsonString(property, value);
+#if UNITY_EDITOR
+            var obj = value as UnityEngine.Object;
+            AppendJsonString(property, UnityEditor.GlobalObjectId.GetGlobalObjectIdSlow(obj).ToString());
+#else
+            AppendJsonString(property, null);
+#endif
             return VisitStatus.Override;
         }
 

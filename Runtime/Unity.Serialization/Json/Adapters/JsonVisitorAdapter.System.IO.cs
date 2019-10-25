@@ -12,25 +12,23 @@ namespace Unity.Serialization.Json
         public static void RegisterTypes()
         {
             TypeConversion.Register<SerializedStringView, DirectoryInfo>(view => new DirectoryInfo(view.ToString()));
-            TypeConversion.Register<DirectoryInfo, string>(directoryInfo => directoryInfo.GetRelativePath());
             TypeConstruction.SetExplicitConstructionMethod(() => { return new DirectoryInfo("."); });
 
             TypeConversion.Register<SerializedStringView, FileInfo>(view => new FileInfo(view.ToString()));
-            TypeConversion.Register<FileInfo, string>(fileInfo => fileInfo.GetRelativePath());
             TypeConstruction.SetExplicitConstructionMethod(() => { return new FileInfo("."); });
         }
 
         public VisitStatus Visit<TProperty, TContainer>(IPropertyVisitor visitor, TProperty property, ref TContainer container, ref DirectoryInfo value, ref ChangeTracker changeTracker)
             where TProperty : IProperty<TContainer, DirectoryInfo>
         {
-            AppendJsonString(property, value);
+            AppendJsonString(property, value.GetRelativePath());
             return VisitStatus.Handled;
         }
 
         public VisitStatus Visit<TProperty, TContainer>(IPropertyVisitor visitor, TProperty property, ref TContainer container, ref FileInfo value, ref ChangeTracker changeTracker)
             where TProperty : IProperty<TContainer, FileInfo>
         {
-            AppendJsonString(property, value);
+            AppendJsonString(property, value.GetRelativePath());
             return VisitStatus.Handled;
         }
     }

@@ -1,7 +1,7 @@
 {
   "name": "com.unity.serialization",
   "displayName": "Serialization",
-  "version": "0.6.0-preview",
+  "version": "0.6.1-preview",
   "unity": "2019.3",
   "unityRelease": "0f1",
   "description": "The Serialization package provides utilities for high performance serialization and deserialization. The package currently only supports the JSON format.",
@@ -21,6 +21,6 @@
   "repository": {
     "type": "git",
     "url": "git@github.cds.internal.unity3d.com:unity/com.unity.serialization.git",
-    "revision": "b6cf99a0e21e12e0bfbd70978bd76b618d387d43"
+    "revision": "99c07981b7f4ad7a0f7b0c98f3e0ff025e1c2152"
   }
 }

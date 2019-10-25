@@ -50,28 +50,16 @@ namespace Unity.Serialization.Json
             }
         }
 
-        protected void AppendJsonString<TProperty, TValue>(TProperty property, TValue value)
+        /// <summary>
+        /// Utility method to write a json encoded string.
+        /// </summary>
+        /// <typeparam name="TProperty">The property type.</typeparam>
+        /// <param name="property">The property being written.</param>
+        /// <param name="value">The string to append.</param>
+        protected void AppendJsonString<TProperty>(TProperty property, string value)
             where TProperty : IProperty
         {
-            if (value == null)
-            {
-                Append(property, value, (builder, v) => builder.Append("null"));
-            }
-            else if (typeof(TValue) == typeof(string))
-            {
-                Append(property, value as string, (builder, s) => builder.Append(EncodeJsonString(s)));
-            }
-            else
-            {
-                if (TypeConversion.TryConvert<TValue, string>(value, out var str))
-                {
-                    Append(property, str, (builder, s) => builder.Append(EncodeJsonString(s)));
-                }
-                else
-                {
-                    Append(property, value, (builder, v) => builder.Append(EncodeJsonString(v.ToString())));
-                }
-            }
+            Append(property, value, (builder, v) => builder.Append(EncodeJsonString(v)));
         }
 
         static readonly StringBuilder s_Builder = new StringBuilder(64);

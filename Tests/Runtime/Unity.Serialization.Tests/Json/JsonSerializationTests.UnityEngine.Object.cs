@@ -10,7 +10,7 @@ namespace Unity.Serialization.Json.Tests
 
         class UnityEngineObjectContainer
         {
-            public Object Value;
+            public Texture2D Value;
         }
 
         class UnityEditorGlobalObjectIdContainer
@@ -35,7 +35,7 @@ namespace Unity.Serialization.Json.Tests
         [Test]
         public void JsonSerialization_Serialize_UnityEngineObject()
         {
-            var src = new UnityEngineObjectContainer { Value = AssetDatabase.LoadMainAssetAtPath(k_AssetPath) };
+            var src = new UnityEngineObjectContainer { Value = AssetDatabase.LoadAssetAtPath<Texture2D>(k_AssetPath) };
             var json = JsonSerialization.Serialize(src);
             Debug.Log(json);
             Assert.That(json, Does.Match(@".*""GlobalObjectId_V\d-\d-[\da-f]{32}-\d{7}-\d"".*"));
@@ -52,7 +52,7 @@ namespace Unity.Serialization.Json.Tests
         [Test, Ignore("GlobalObjectIdentifierToObjectSlow currently returns null in this case")]
         public void JsonSerialization_Serialize_UnityEngineObject_DeserializeDeletedAsset()
         {
-            var src = new UnityEngineObjectContainer { Value = AssetDatabase.LoadMainAssetAtPath(k_AssetPath) };
+            var src = new UnityEngineObjectContainer { Value = AssetDatabase.LoadAssetAtPath<Texture2D>(k_AssetPath) };
             var json = JsonSerialization.Serialize(src);
             Debug.Log(json);
             Assert.That(json, Does.Match(@".*""GlobalObjectId_V\d-\d-[\da-f]{32}-\d{7}-\d"".*"));
@@ -71,7 +71,7 @@ namespace Unity.Serialization.Json.Tests
         [Test]
         public void JsonSerialization_Serialize_UnityEngineObject_FromGlobalObjectId()
         {
-            var src = new UnityEditorGlobalObjectIdContainer { Value = GlobalObjectId.GetGlobalObjectIdSlow(AssetDatabase.LoadMainAssetAtPath(k_AssetPath)) };
+            var src = new UnityEditorGlobalObjectIdContainer { Value = GlobalObjectId.GetGlobalObjectIdSlow(AssetDatabase.LoadAssetAtPath<Texture2D>(k_AssetPath)) };
             var json = JsonSerialization.Serialize(src);
             Debug.Log(json);
             Assert.That(json, Does.Match(@".*""GlobalObjectId_V\d-\d-[\da-f]{32}-\d{7}-\d"".*"));
