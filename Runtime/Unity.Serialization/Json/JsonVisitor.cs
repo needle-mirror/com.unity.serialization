@@ -67,16 +67,35 @@ namespace Unity.Serialization.Json
         {
             if (property is ICollectionElementProperty)
             {
-                Indent--;
-                Builder.Length -= 1;
-                Builder.Append(Builder[Builder.Length - 1] == ',' ? " {\n" : "{\n");
+                if (!typeof(TValue).IsValueType && value == null)
+                {
+                    Builder.Append(' ', Style.Space * Indent);
+                    Builder.Append("null,\n");
+                    return VisitStatus.Override;
+                }
+                else
+                {
+                    Indent--;
+                    Builder.Length -= 1;
+                    Builder.Append(Builder[Builder.Length - 1] == ',' ? " {\n" : "{\n");
+                }
             }
             else
             {
                 Builder.Append(' ', Style.Space * Indent);
                 Builder.Append("\"");
                 Builder.Append(property.GetName());
-                Builder.Append("\": {\n");
+                Builder.Append("\": ");
+
+                if (!typeof(TValue).IsValueType && value == null)
+                {
+                    Builder.Append("null,\n");
+                    return VisitStatus.Override;
+                }
+                else
+                {
+                    Builder.Append("{\n");
+                }
             }
 
             Indent++;
