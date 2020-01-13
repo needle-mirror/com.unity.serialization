@@ -6,7 +6,7 @@ namespace Unity.Serialization.Json.Tests
 {
     partial class JsonSerializationTests
     {
-        const string k_AssetPath = "Assets/Tests/test-image.asset";
+        const string k_AssetPath = "Assets/JsonSerializationTests-test-image.asset";
 
         class UnityEngineObjectContainer
         {

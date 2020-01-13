@@ -4,6 +4,13 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [0.6.4-preview] - 2020-01-13
+### Added
+* `JsonObject` data structure to serialize free-form JSON using Properties.
+
+### Changed
+* Updated `com.unity.properties` to version `0.10.4-preview`.
+
 ## [0.6.3-preview] - 2019-11-08
 ### Changed
 * Updated `com.unity.properties` to version `0.10.3-preview`.

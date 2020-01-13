@@ -164,6 +164,7 @@ namespace Unity.Serialization.Json
             }
 
             visitor.Builder.Clear();
+            visitor.Indent = 0;
 
             WritePrefix(visitor);
             PropertyContainer.Visit(container, visitor);
