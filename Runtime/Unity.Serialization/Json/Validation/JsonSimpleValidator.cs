@@ -5,33 +5,34 @@ using Unity.Jobs;
 namespace Unity.Serialization.Json
 {
     /// <summary>
-    /// @TODO
+    /// The intent for this validator is to test for the SJSON format. For the time being, it is a pass-through.
+    /// Structural validation is still performed by the tokenizer.
     /// </summary>
-    class JsonSimpleValidator : IJsonValidator, IDisposable
+    struct JsonSimpleValidator : IDisposable
     {
         public JsonSimpleValidator(Allocator label = SerializationConfiguration.DefaultAllocatorLabel)
         {
-            throw new NotImplementedException();
+            
         }
 
-        public void Initialize()
+        public void Reset()
         {
-            throw new NotImplementedException();
+            
         }
 
         public JsonValidationResult GetResult()
         {
-            throw new NotImplementedException();
+            return default;
         }
 
-        public JobHandle ValidateAsync(UnsafeBuffer<char> buffer, int start, int count)
+        public JobHandle ScheduleValidation(UnsafeBuffer<char> buffer, int start, int count, JobHandle dependsOn = default)
         {
-            throw new NotImplementedException();
+            return dependsOn;
         }
 
         public void Dispose()
         {
-            throw new NotImplementedException();
+            
         }
     }
 }

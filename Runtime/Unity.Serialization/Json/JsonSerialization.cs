@@ -1,201 +1,144 @@
 using System;
-using System.IO;
-using System.Text;
-using Unity.Properties;
+using System.Collections.Generic;
+using Unity.Serialization.Json.Adapters;
 
 namespace Unity.Serialization.Json
 {
     /// <summary>
-    /// Helper class that generically writes any property container as a JSON string.
-    ///
-    /// @NOTE This class makes heavy use of `StringBuilder` and `.ToString` on primitives, which allocates large amounts of memory. Use it sparingly.
-    ///
-    /// @TODO
-    ///    * Optimization
+    /// Custom parameters to use for json serialization or deserialization.
     /// </summary>
-    /// <remarks>
-    /// The deserialization methods will not construct type instances. All object fields must be initialized in the default constructor.
-    /// </remarks>
-    public static class JsonSerialization
+    public struct JsonSerializationParameters
     {
-        static readonly JsonVisitor s_DefaultVisitor = new JsonVisitor();
+        /// <summary>
+        /// By default, a polymorphic root type will have it's assembly qualified type name written to the output in the "$type" field.
+        /// Use this parameter to provide a known root type at both serialize and deserialize time to avoid writing this information OR
+        /// if this information is missing from the json string.
+        /// </summary>
+        public Type SerializedType { get; set; }
+        
+        /// <summary>
+        /// By default, adapters are evaluated for root objects. Use this to change the default behaviour.
+        /// </summary>
+        public bool DisableRootAdapters { get; set; }
+        
+        /// <summary>
+        /// Provide a custom set of adapters for the serialization. These adapters will be evaluated first before any global or built in adapters.
+        /// </summary>
+        /// <remarks>
+        /// To register a global adapter see <see cref="JsonSerialization.AddGlobalAdapter"/>.
+        /// </remarks>
+        public List<IJsonAdapter> UserDefinedAdapters { get; set; }
+        
+        /// <summary>
+        /// Provide a custom set of migration adapters for the serialization. These adapters will be evaluated first before any global or built in adapters.
+        /// </summary>
+        /// <remarks>
+        /// To register a global migration see <see cref="JsonSerialization.AddGlobalMigration"/>.
+        /// </remarks>
+        public List<IJsonMigration> UserDefinedMigrations { get; set; }
 
         /// <summary>
-        /// Deserializes the given file path and writes the data to the given container.
+        /// The initial capacity (in characters) to use for the internal writer if none is provided. The default value is 32.
         /// </summary>
-        /// <param name="path">The file path to read from.</param>
-        /// <param name="container">The container to deserialize data in to.</param>
-        /// <typeparam name="TContainer">The type to deserialize.</typeparam>
-        public static VisitResult DeserializeFromPath<TContainer>(string path, ref TContainer container)
+        public int InitialCapacity { get; set; }
+
+        /// <summary>
+        /// This parameter indicates if the serialization should be thread safe. The default value is false.
+        /// </summary>
+        /// <remarks>
+        /// Setting this to true will cause managed allocations for the internal visitor.
+        /// </remarks>
+        public bool RequiresThreadSafety { get; set; }
+        
+        /// <summary>
+        /// By default, references between objects are serialized. Use this to always write a copy of the object to the output.
+        /// </summary>
+        public bool DisableSerializedReferences { get; set; }
+    }
+    
+    /// <summary>
+    /// High level API for serializing or deserializing json data from string, file or stream.
+    /// </summary>
+    public partial class JsonSerialization
+    {
+        static readonly List<IJsonAdapter> s_Adapters = new List<IJsonAdapter>();
+        static readonly List<IJsonMigration> s_Migrations = new List<IJsonMigration>();
+        static readonly SerializedReferenceVisitor s_SharedSerializedReferenceVisitor = new SerializedReferenceVisitor();
+        static readonly SerializedReferences s_SharedSerializedReferences = new SerializedReferences();
+
+        static SerializedReferenceVisitor GetSharedSerializedReferenceVisitor()
         {
-            using (var reader = new SerializedObjectReader(path))
-            {
-                return Deserialize(reader, ref container);
-            }
+            return s_SharedSerializedReferenceVisitor;
         }
-
-        /// <summary>
-        /// Deserializes the given file path and returns a new instance of the container.
-        /// </summary>
-        /// <param name="path">The file path to read from.</param>
-        /// <typeparam name="TContainer">The type to deserialize.</typeparam>
-        /// <returns>A new instance of the container with based on the serialized data.</returns>
-        public static TContainer DeserializeFromPath<TContainer>(string path)
-            where TContainer : new()
+        
+        static SerializedReferences GetSharedSerializedReferences()
         {
-            var container = new TContainer();
-            using (var reader = new SerializedObjectReader(path))
-            {
-                using (var result = Deserialize(reader, ref container))
-                {
-                    result.Throw();
-                }
-            }
-            return container;
-        }
-
-        /// <summary>
-        /// Deserializes the given json string and writes the data to the given container.
-        /// </summary>
-        /// <param name="jsonString">The json data as a string.</param>
-        /// <param name="container">The container to deserialize data in to.</param>
-        /// <typeparam name="TContainer">The type to deserialize.</typeparam>
-        public static VisitResult DeserializeFromString<TContainer>(string jsonString, ref TContainer container)
-        {
-            using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(jsonString)))
-            {
-                return DeserializeFromStream(stream, ref container);
-            }
-        }
-
-        /// <summary>
-        /// Deserializes the given json string and returns a new instance of the container.
-        /// </summary>
-        /// <param name="jsonString">The json data as a string.</param>
-        /// <typeparam name="TContainer">The type to deserialize.</typeparam>
-        /// <returns>A new instance of the container with based on the serialized data.</returns>
-        public static TContainer DeserializeFromString<TContainer>(string jsonString)
-            where TContainer : new()
-        {
-            using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(jsonString)))
-            {
-                return DeserializeFromStream<TContainer>(stream);
-            }
-        }
-
-        /// <summary>
-        /// Deserializes the given stream and writes the data to the given container.
-        /// </summary>
-        /// <typeparam name="TContainer">The type to deserialize.</typeparam>
-        /// <param name="stream">The stream to read from.</param>
-        /// <param name="container">The container to deserialize data in to.</param>
-        public static VisitResult DeserializeFromStream<TContainer>(Stream stream, ref TContainer container)
-        {
-            using (var reader = new SerializedObjectReader(stream))
-            {
-                return Deserialize(reader, ref container);
-            }
+            s_SharedSerializedReferences.Clear();
+            return s_SharedSerializedReferences;
         }
 
         /// <summary>
-        /// Deserializes the given stream and returns a new instance of the container.
+        /// Adds the specified <see cref="IJsonAdapter"/> to the set of global adapters. This is be included by default in all JsonSerialization calls.
         /// </summary>
-        /// <typeparam name="TContainer">The type to deserialize.</typeparam>
-        /// <param name="stream">The stream to read from.</param>
-        /// <returns>A new instance of the container with based on the serialized data.</returns>
-        public static TContainer DeserializeFromStream<TContainer>(Stream stream)
-            where TContainer : new()
+        /// <param name="adapter">The adapter to add.</param>
+        /// <exception cref="ArgumentException">The given adapter is already registered.</exception>
+        public static void AddGlobalAdapter(IJsonAdapter adapter)
         {
-            var container = new TContainer();
-            using (var reader = new SerializedObjectReader(stream))
-            {
-                using (var result = Deserialize(reader, ref container))
-                {
-                    result.Throw();
-                }
-            }
-            return container;
+            if (s_Adapters.Contains(adapter))
+                throw new ArgumentException("IJsonAdapter has already been registered.");
+            
+            s_Adapters.Add(adapter);
         }
-
-        static VisitResult Deserialize<TContainer>(SerializedObjectReader reader, ref TContainer container)
+        
+        /// <summary>
+        /// Removes the specified <see cref="IJsonAdapter"/> from the set of global adapters. 
+        /// </summary>
+        /// <param name="adapter">The adapter to remove.</param>
+        /// <exception cref="ArgumentException">The given adapter has not been registered.</exception>
+        public static void RemoveGlobalAdapter(IJsonAdapter adapter)
         {
-            var source = reader.ReadObject();
-            var result = VisitResult.GetPooled();
-            try
-            {
-                using (var construction = PropertyContainer.Construct(ref container, ref source, new PropertyContainerConstructOptions {TypeIdentifierKey = JsonVisitor.Style.TypeInfoKey}))
-                    result.TransferEvents(construction);
-
-                using (var transfer = PropertyContainer.Transfer(ref container, ref source))
-                    result.TransferEvents(transfer);
-            }
-            catch (Exception)
-            {
-                reader.Dispose();
-                throw;
-            }
-
-            return result;
+            if (!s_Adapters.Contains(adapter))
+                throw new ArgumentException("IJsonAdapter has not been registered.");
+            
+            s_Adapters.Remove(adapter);
+        }
+        
+        /// <summary>
+        /// Adds the specified <see cref="IJsonMigration"/> to the set of global adapters. This is be included by default in all JsonSerialization calls.
+        /// </summary>
+        /// <param name="migration">The migration to add.</param>
+        /// <exception cref="ArgumentException">The given migration is already registered.</exception>
+        public static void AddGlobalMigration(IJsonMigration migration)
+        {
+            if (s_Migrations.Contains(migration))
+                throw new ArgumentException("IJsonMigration has already been registered.");
+            
+            s_Migrations.Add(migration);
+        }
+        
+        /// <summary>
+        /// Removes the specified <see cref="IJsonAdapter"/> from the set of global adapters. 
+        /// </summary>
+        /// <param name="migration">The migration to remove.</param>
+        /// <exception cref="ArgumentException">The given migration has not been registered.</exception>
+        public static void RemoveGlobalMigration(IJsonMigration migration)
+        {
+            if (!s_Migrations.Contains(migration))
+                throw new ArgumentException("IJsonMigration has not been registered.");
+            
+            s_Migrations.Add(migration);
         }
 
         /// <summary>
-        /// Writes a property container to a file path.
+        /// Returns the currently registered set of global adapters.
         /// </summary>
-        /// <param name="path">The file path to write to.</param>
-        /// <param name="target">The struct or class to serialize.</param>
-        /// <typeparam name="TContainer">The type to serialize.</typeparam>
-        public static void Serialize<TContainer>(string path, TContainer target)
-        {
-            File.WriteAllText(path, Serialize(target));
-        }
-
+        /// <returns>The internal list of global adapters.</returns>
+        static List<IJsonAdapter> GetGlobalAdapters() => s_Adapters;
+        
         /// <summary>
-        /// Writes a property container to a json string.
+        /// Returns the currently registered set of global migration.
         /// </summary>
-        /// <param name="container">The container to write.</param>
-        /// <param name="visitor">The visitor to use. If none is provided, the default one is used.</param>
-        /// <typeparam name="TContainer">The type to serialize.</typeparam>
-        /// <returns>A json string.</returns>
-        public static string Serialize<TContainer>(TContainer container, JsonVisitor visitor = null)
-        {
-            if (null == visitor)
-            {
-                visitor = s_DefaultVisitor;
-            }
-
-            visitor.Builder.Clear();
-            visitor.Indent = 0;
-
-            WritePrefix(visitor);
-            PropertyContainer.Visit(container, visitor);
-            WriteSuffix(visitor);
-
-            return visitor.Builder.ToString();
-        }
-
-        static void WritePrefix(JsonVisitor visitor)
-        {
-            visitor.Builder.Append(' ', JsonVisitor.Style.Space * visitor.Indent);
-            visitor.Builder.Append("{\n");
-            visitor.Indent++;
-        }
-
-        static void WriteSuffix(JsonVisitor visitor)
-        {
-            visitor.Indent--;
-
-            if (visitor.Builder[visitor.Builder.Length - 2] == '{')
-            {
-                visitor.Builder.Length -= 1;
-            }
-            else
-            {
-                visitor.Builder.Length -= 2;
-            }
-
-            visitor.Builder.Append("\n");
-            visitor.Builder.Append(' ', JsonVisitor.Style.Space * visitor.Indent);
-            visitor.Builder.Append("}");
-        }
+        /// <returns>The internal list of global migration.</returns>
+        static List<IJsonMigration> GetGlobalMigrations() => s_Migrations;
     }
 }

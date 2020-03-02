@@ -7,13 +7,13 @@
         "Unity.Mathematics",
         "Unity.Properties"
     ],
-    "optionalUnityReferences": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": true,
     "overrideReferences": false,
     "precompiledReferences": [],
-    "autoReferenced": false,
-    "defineConstraints": [],
-    "versionDefines": []
+    "autoReferenced": true,
+    "defineConstraints": ["!NET_DOTS"],
+    "versionDefines": [],
+    "noEngineReferences": false
 }

@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -8,7 +7,7 @@ using Unity.Jobs;
 namespace Unity.Serialization.Json
 {
     [Flags]
-    internal enum JsonType
+    enum JsonType
     {
         Undefined = 1 << 0,
         BeginObject = 1 << 1, // '{'
@@ -31,7 +30,7 @@ namespace Unity.Serialization.Json
         Value = BeginObject | BeginArray | String | Number | Negative | NaN | Infinity | True | False | Null
     }
 
-    internal struct JsonValidationResult
+    struct JsonValidationResult
     {
         /// <summary>
         /// The type that was expected by the validator.
@@ -71,27 +70,12 @@ namespace Unity.Serialization.Json
         }
     }
 
-    unsafe class JsonStandardValidator : IJsonValidator, IDisposable
+    unsafe struct JsonStandardValidator : IDisposable
     {
         const int k_ResultSuccess = 0;
         const int k_ResultEndOfStream = -1;
         const int k_ResultInvalidJson = -2;
         const int k_DefaultDepthLimit = 128;
-
-        struct ValidationJobData
-        {
-            public int CharBufferPosition;
-            public JsonTypeStack Stack;
-            public ushort PrevChar;
-            public JsonType Expected;
-            public JsonType Actual;
-            public int LineCount;
-            public int LineStart;
-            public int CharCount;
-            public ushort Char;
-            public JsonType PartialTokenType;
-            public int PartialTokenState;
-        }
 
         struct JsonTypeStack : IDisposable
         {
@@ -149,10 +133,11 @@ namespace Unity.Serialization.Json
             }
         }
 
-        [BurstCompile(CompileSynchronously = true)]
+        [BurstCompile]
         struct StandardJsonValidationJob : IJob
         {
-            [NativeDisableUnsafePtrRestriction] public ValidationJobData* Data;
+            // ReSharper disable once MemberHidesStaticFromOuterClass
+            [NativeDisableUnsafePtrRestriction] public Data* Data;
 
             [NativeDisableUnsafePtrRestriction] public ushort* CharBuffer;
             public int CharBufferLength;
@@ -619,7 +604,7 @@ namespace Unity.Serialization.Json
                         case 'N':
                         case 'n':
                         {
-                            if (!IsExpected(JsonType.Null | JsonType.NaN))
+                            if (!IsExpected(JsonType.Null) && !IsExpected(JsonType.NaN))
                             {
                                 Break(JsonType.Null | JsonType.NaN);
                                 return;
@@ -774,10 +759,10 @@ namespace Unity.Serialization.Json
 
             int ReadNumber(ref int state)
             {
-                const int stateStart = 0;
-                const int stateIntegerPart = 1;
-                const int stateDecimalPart = 2;
-                const int stateEPart = 3;
+                const int kStateStart = 0;
+                const int kStateIntegerPart = 1;
+                const int kStateDecimalPart = 2;
+                const int kStateEPart = 3;
 
                 m_PrevChar = '\0';
 
@@ -798,42 +783,43 @@ namespace Unity.Serialization.Json
 
                     switch (c)
                     {
+                        case '+':
                         case '-':
                         {
-                            if (state == stateEPart)
+                            if (state == kStateEPart)
                             {
                                 break;
                             }
 
-                            if (state != stateStart)
+                            if (state != kStateStart)
                             {
                                 return k_ResultInvalidJson;
                             }
 
-                            state = stateIntegerPart;
+                            state = kStateIntegerPart;
                         }
                             break;
 
                         case '.':
                         {
-                            if (state != stateIntegerPart)
+                            if (state != kStateIntegerPart)
                             {
                                 return k_ResultInvalidJson;
                             }
 
-                            state = stateDecimalPart;
+                            state = kStateDecimalPart;
                         }
                             break;
 
                         case 'e':
                         case 'E':
                         {
-                            if (m_PrevChar == '-' || m_PrevChar == '.' || state != stateDecimalPart && state != stateIntegerPart)
+                            if (m_PrevChar == '-' || m_PrevChar == '.' || state != kStateDecimalPart && state != kStateIntegerPart)
                             {
                                 return k_ResultInvalidJson;
                             }
 
-                            state = stateEPart;
+                            state = kStateEPart;
                         }
                             break;
 
@@ -844,9 +830,9 @@ namespace Unity.Serialization.Json
                                 return k_ResultInvalidJson;
                             }
 
-                            if (state == stateStart)
+                            if (state == kStateStart)
                             {
-                                state = stateIntegerPart;
+                                state = kStateIntegerPart;
                             }
                         }
                             break;
@@ -962,41 +948,50 @@ namespace Unity.Serialization.Json
                 return (type & m_Expected) == type;
             }
         }
-
-        readonly Allocator m_Allocator;
-        JsonTypeStack m_Stack;
-        JobHandle m_Handle;
-        ValidationJobData* m_Data;
+        
+        struct Data
+        {
+            public JsonTypeStack Stack;
+            public int CharBufferPosition;
+            public ushort PrevChar;
+            public JsonType Expected;
+            public JsonType Actual;
+            public int LineCount;
+            public int LineStart;
+            public int CharCount;
+            public ushort Char;
+            public JsonType PartialTokenType;
+            public int PartialTokenState;
+        }
+        
+        readonly Allocator m_Label;
+        Data* m_Data;
 
         public JsonStandardValidator(Allocator label = SerializationConfiguration.DefaultAllocatorLabel)
         {
-            m_Allocator = label;
-            m_Stack = new JsonTypeStack(k_DefaultDepthLimit, label);
-            m_Data = (ValidationJobData*) UnsafeUtility.Malloc(sizeof(ValidationJobData), UnsafeUtility.AlignOf<ValidationJobData>(), label);
-            Initialize();
+            m_Label = label;
+            m_Data = (Data*) UnsafeUtility.Malloc(sizeof(Data), UnsafeUtility.AlignOf<Data>(), label);
+            m_Data->Stack = new JsonTypeStack(k_DefaultDepthLimit, label);
+            Reset();
         }
 
-        public void Initialize()
+        public void Reset()
         {
-            m_Stack.Clear();
-
-            UnsafeUtility.MemClear(m_Data, sizeof(ValidationJobData));
-
-            m_Data->Stack = m_Stack;
+            m_Data->Stack.Clear();
+            m_Data->CharBufferPosition = 0;
             m_Data->PrevChar = '\0';
-            m_Data->Expected = JsonType.BeginObject | JsonType.BeginArray;
-            m_Data->CharCount = 1;
+            m_Data->Expected = JsonType.Value;
+            m_Data->Actual = JsonType.Undefined;
             m_Data->LineCount = 1;
             m_Data->LineStart = -1;
+            m_Data->CharCount = 1;
+            m_Data->Char = '\0';
+            m_Data->PartialTokenType = JsonType.Undefined;
+            m_Data->PartialTokenState = 0;
         }
 
         public JsonValidationResult GetResult()
         {
-            if (!m_Handle.IsCompleted)
-            {
-                throw new InvalidDataException("Validation job is in progress.");
-            }
-
             return new JsonValidationResult
             {
                 ExpectedType = m_Data->Expected,
@@ -1007,36 +1002,32 @@ namespace Unity.Serialization.Json
             };
         }
 
-        public JobHandle ValidateAsync(UnsafeBuffer<char> buffer, int start, int count)
+        public JobHandle ScheduleValidation(UnsafeBuffer<char> buffer, int start, int count, JobHandle dependsOn = default)
         {
-            if (!m_Handle.IsCompleted)
-            {
-                throw new InvalidDataException("The validator is currently in use by a previous operation.");
-            }
-
             m_Data->CharBufferPosition = start;
 
-            m_Handle = new StandardJsonValidationJob
+            return new StandardJsonValidationJob
             {
                 Data = m_Data,
                 CharBuffer = (ushort*) buffer.Buffer,
                 CharBufferLength = start + count,
-            }.Schedule();
-
-            return m_Handle;
+            }.Schedule(dependsOn);
         }
 
         public JsonValidationResult Validate(UnsafeBuffer<char> buffer, int start, int count)
         {
-            ValidateAsync(buffer, start, count).Complete();
+            ScheduleValidation(buffer, start, count).Complete();
             return GetResult();
         }
 
         public void Dispose()
         {
-            UnsafeUtility.Free(m_Data, m_Allocator);
-            m_Data = null;
-            m_Stack.Dispose();
+            if (null != m_Data)
+            {
+                m_Data->Stack.Dispose();
+                UnsafeUtility.Free(m_Data, m_Label);
+                m_Data = null; 
+            }
         }
     }
 }
