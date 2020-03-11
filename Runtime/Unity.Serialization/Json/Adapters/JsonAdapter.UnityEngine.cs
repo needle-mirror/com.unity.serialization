@@ -23,8 +23,21 @@ namespace Unity.Serialization.Json.Adapters
 #if UNITY_EDITOR
             if (view.Type == TokenType.String)
             {
-                UnityEditor.GlobalObjectId.TryParse(view.ToString(), out var value);
-                return UnityEditor.GlobalObjectId.GlobalObjectIdentifierToObjectSlow(value);
+                if (UnityEditor.GlobalObjectId.TryParse(view.ToString(), out var id))
+                {
+                    if (id.assetGUID.Empty())
+                    {
+                        return null;
+                    }
+
+                    var obj = UnityEditor.GlobalObjectId.GlobalObjectIdentifierToObjectSlow(id);
+                    if (obj == null || !obj)
+                    {
+                        throw new InvalidOperationException($"An error occured while deserializing asset reference GUID=[{id.assetGUID.ToString()}]. Asset is not yet loaded and will result in a null reference.");
+                    }
+
+                    return obj;
+                }
             }
 
             if (view.Type == TokenType.Object)

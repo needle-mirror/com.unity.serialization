@@ -6,17 +6,31 @@ namespace Unity.Serialization.Json.Adapters
         IJsonAdapter<DirectoryInfo>,
         IJsonAdapter<FileInfo>
     {
-        void IJsonAdapter<DirectoryInfo>.Serialize(JsonStringBuffer writer, DirectoryInfo value) 
-            => writer.WriteEncodedJsonString(value.GetRelativePath());
+        void IJsonAdapter<DirectoryInfo>.Serialize(JsonStringBuffer writer, DirectoryInfo value)
+        {
+            if (null == value) 
+                writer.Write("null");
+            else 
+                writer.WriteEncodedJsonString(value.GetRelativePath());
+        }
 
         DirectoryInfo IJsonAdapter<DirectoryInfo>.Deserialize(SerializedValueView view)
-            => new DirectoryInfo(view.ToString());
+        {
+            return view.AsStringView().Equals("null") ? null : new DirectoryInfo(view.ToString());
+        }
 
-        void IJsonAdapter<FileInfo>.Serialize(JsonStringBuffer writer, FileInfo value) 
-            => writer.WriteEncodedJsonString(value.GetRelativePath());
+        void IJsonAdapter<FileInfo>.Serialize(JsonStringBuffer writer, FileInfo value)
+        {
+            if (null == value) 
+                writer.Write("null");
+            else 
+                writer.WriteEncodedJsonString(value.GetRelativePath());
+        }
 
-        FileInfo IJsonAdapter<FileInfo>.Deserialize(SerializedValueView view) 
-            => new FileInfo(view.ToString());
+        FileInfo IJsonAdapter<FileInfo>.Deserialize(SerializedValueView view)
+        {
+            return view.AsStringView().Equals("null") ? null : new FileInfo(view.ToString());
+        }
     }
 
     static class DirectoryInfoExtensions

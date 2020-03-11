@@ -8,7 +8,7 @@ using Unity.Serialization.Json.Unsafe;
 namespace Unity.Serialization.Json
 {
     class JsonPropertyReader : JsonPropertyVisitor,
-        IPropertyBagVisitor, 
+        IPropertyBagVisitor,
         ISetPropertyBagVisitor,
         IListPropertyBagVisitor,
         IDictionaryPropertyBagVisitor,
@@ -20,7 +20,7 @@ namespace Unity.Serialization.Json
 
             public UnsafeValueView View;
             public Type SerializedType;
-        
+
             public Type GetSerializedType()
             {
                 if (SerializedType != null)
@@ -32,7 +32,7 @@ namespace Unity.Serialization.Json
                 {
                     return null;
                 }
-            
+
                 if (typeNameView.Type != TokenType.String)
                 {
                     throw new ArgumentException($"Failed to construct type. Property=[{k_SerializedTypeKey}] is expected to be a string.");
@@ -53,15 +53,15 @@ namespace Unity.Serialization.Json
                     {
                         serializedType = Type.GetType(currentAssemblyQualifiedTypeName);
                     }
-                    
+
                     if (null == serializedType)
                     {
                         throw new ArgumentException($"Failed to construct type. Could not resolve type from TypeName=[{assemblyQualifiedTypeName}].");
                     }
-                    
+
                     Events.Add(new DeserializationEvent(EventType.Log, $"Type construction encountered a type name remap OldType=[{assemblyQualifiedTypeName}] CurrentType=[{currentAssemblyQualifiedTypeName}]"));
                 }
-                
+
                 return serializedType;
             }
 
@@ -85,7 +85,7 @@ namespace Unity.Serialization.Json
                 return null;
             }
         }
-        
+
         struct SerializedContainerMetadata
         {
             public bool HasSerializedId;
@@ -113,7 +113,7 @@ namespace Unity.Serialization.Json
                 m_Visitor.m_Metadata = m_Metadata;
             }
         }
-        
+
         internal readonly struct UnsafeViewScope : IDisposable
         {
             readonly JsonPropertyReader m_Visitor;
@@ -136,7 +136,7 @@ namespace Unity.Serialization.Json
         {
             readonly JsonPropertyReader m_Visitor;
             readonly bool m_DisableRootMigration;
-            
+
             public DisableRootMigrationScope(JsonPropertyReader visitor, bool disableRootMigration)
             {
                 m_DisableRootMigration = visitor.m_DisableRootMigration;
@@ -154,7 +154,7 @@ namespace Unity.Serialization.Json
         {
             readonly JsonPropertyReader m_Visitor;
             readonly Type m_SerializedType;
-            
+
             public SerializedTypeScope(JsonPropertyReader visitor, Type type)
             {
                 m_SerializedType = visitor.m_SerializedType;
@@ -178,27 +178,27 @@ namespace Unity.Serialization.Json
         SerializedContainerMetadata m_Metadata;
         readonly SerializedTypeProvider m_SerializedTypeProvider;
 
-        public void SetView(UnsafeValueView view) 
+        public void SetView(UnsafeValueView view)
             => m_View = view;
-        
-        public void SetSerializedType(Type type) 
+
+        public void SetSerializedType(Type type)
             => m_SerializedType = type;
-        
-        public void SetDisableRootAdapters(bool disableRootAdapters) 
+
+        public void SetDisableRootAdapters(bool disableRootAdapters)
             => m_DisableRootAdapters = disableRootAdapters;
-        
-        public void SetGlobalAdapters(List<IJsonAdapter> adapters) 
+
+        public void SetGlobalAdapters(List<IJsonAdapter> adapters)
             => m_Adapters.Global = adapters;
-        
-        public void SetUserDefinedAdapters(List<IJsonAdapter> adapters) 
+
+        public void SetUserDefinedAdapters(List<IJsonAdapter> adapters)
             => m_Adapters.UserDefined = adapters;
-        
-        public void SetGlobalMigrations(List<IJsonMigration> migrations) 
+
+        public void SetGlobalMigrations(List<IJsonMigration> migrations)
             => m_Migrations.Global = migrations;
-        
-        public void SetUserDefinedMigrations(List<IJsonMigration> migrations) 
+
+        public void SetUserDefinedMigrations(List<IJsonMigration> migrations)
             => m_Migrations.UserDefined = migrations;
-        
+
         public void SetEvents(List<DeserializationEvent> events)
             => m_SerializedTypeProvider.Events = events;
 
@@ -214,7 +214,7 @@ namespace Unity.Serialization.Json
         static SerializedContainerMetadata GetSerializedContainerMetadata(UnsafeObjectView view)
         {
             var metadata = default(SerializedContainerMetadata);
-            
+
             foreach (var member in view)
             {
                 var name = member.Key().AsStringView();
@@ -241,16 +241,16 @@ namespace Unity.Serialization.Json
 
             return metadata;
         }
-        
+
         internal UnsafeViewScope CreateViewScope(UnsafeValueView view)
             => new UnsafeViewScope(this, view);
-        
+
         internal DisableRootMigrationScope CreateDisableRootMigrationScope(bool disableRootMigration)
             => new DisableRootMigrationScope(this, disableRootMigration);
-        
+
         internal SerializedTypeScope CreateSerializedTypeScope(Type serializedType)
             => new SerializedTypeScope(this, serializedType);
-        
+
         void IPropertyBagVisitor.Visit<TContainer>(IPropertyBag<TContainer> properties, ref TContainer container)
         {
             if (properties is IPropertyWrapper)
@@ -261,7 +261,7 @@ namespace Unity.Serialization.Json
                     {
                         using (CreatePropertyScope(property))
                         {
-                            ((IPropertyAccept<TContainer>) property).Accept(this, ref container);
+                            ((IPropertyAccept<TContainer>)property).Accept(this, ref container);
                         }
                     }
                 }
@@ -276,7 +276,7 @@ namespace Unity.Serialization.Json
                 {
                     throw new ArgumentException();
                 }
-            
+
                 var obj = m_View.AsObjectView();
 
                 if (!(Property is IPropertyWrapper && m_DisableRootMigration))
@@ -288,7 +288,7 @@ namespace Unity.Serialization.Json
                         return;
                     }
                 }
-                
+
                 if (properties is IPropertyList<TContainer> propertyList)
                 {
                     foreach (var property in propertyList.GetProperties(ref container))
@@ -313,12 +313,12 @@ namespace Unity.Serialization.Json
                 using (CreatePropertyScope(property))
                 using (CreateViewScope(value))
                 {
-                    ((IPropertyAccept<TContainer>) property).Accept(this, ref container);
+                    ((IPropertyAccept<TContainer>)property).Accept(this, ref container);
                 }
 
                 return;
             }
-            
+
             foreach (var attribute in property.GetAttributes<FormerNameAttribute>())
             {
                 if (view.TryGetValue(attribute.OldName, out value))
@@ -326,13 +326,13 @@ namespace Unity.Serialization.Json
                     using (CreatePropertyScope(property))
                     using (CreateViewScope(value))
                     {
-                        ((IPropertyAccept<TContainer>) property).Accept(this, ref container);
+                        ((IPropertyAccept<TContainer>)property).Accept(this, ref container);
                     }
 
                     return;
                 }
             }
-            
+
             foreach (var attribute in property.GetAttributes<UnityEngine.Serialization.FormerlySerializedAsAttribute>())
             {
                 if (view.TryGetValue(attribute.oldName, out value))
@@ -340,27 +340,27 @@ namespace Unity.Serialization.Json
                     using (CreatePropertyScope(property))
                     using (CreateViewScope(value))
                     {
-                        ((IPropertyAccept<TContainer>) property).Accept(this, ref container);
+                        ((IPropertyAccept<TContainer>)property).Accept(this, ref container);
                     }
 
                     return;
                 }
             }
         }
-        
+
         void ISetPropertyBagVisitor.Visit<TSet, TElement>(ISetPropertyBag<TSet, TElement> properties, ref TSet container)
         {
             var elements = m_Metadata.HasElements ? m_View.AsObjectView()[k_SerializedElementsKey] : m_View;
-            
+
             if (elements.Type != TokenType.Array)
             {
                 throw new ArgumentException();
             }
-            
+
             var arr = elements.AsArrayView();
 
             container.Clear();
-            
+
             foreach (var element in arr)
             {
                 var value = default(TElement);
@@ -372,18 +372,18 @@ namespace Unity.Serialization.Json
         void IListPropertyBagVisitor.Visit<TList, TElement>(IListPropertyBag<TList, TElement> properties, ref TList container)
         {
             var elements = m_Metadata.HasElements ? m_View.AsObjectView()[k_SerializedElementsKey] : m_View;
-            
+
             if (elements.Type != TokenType.Array)
             {
                 throw new ArgumentException();
             }
-            
+
             var arr = elements.AsArrayView();
 
             if (typeof(TList).IsArray)
             {
                 var index = 0;
-                        
+
                 // @FIXME boxing
                 foreach (var element in arr)
                 {
@@ -395,7 +395,7 @@ namespace Unity.Serialization.Json
             else
             {
                 container.Clear();
-                
+
                 foreach (var element in arr)
                 {
                     var value = default(TElement);
@@ -408,9 +408,9 @@ namespace Unity.Serialization.Json
         void IDictionaryPropertyBagVisitor.Visit<TDictionary, TKey, TValue>(IDictionaryPropertyBag<TDictionary, TKey, TValue> properties, ref TDictionary container)
         {
             var elements = m_Metadata.HasElements ? m_View.AsObjectView()[k_SerializedElementsKey] : m_View;
-            
+
             container.Clear();
-            
+
             switch (elements.Type)
             {
                 case TokenType.Array:
@@ -430,7 +430,7 @@ namespace Unity.Serialization.Json
                         {
                             var key = default(TKey);
                             ReadValue(ref key, kView);
-                            
+
                             var value = default(TValue);
                             ReadValue(ref value, vView);
 
@@ -448,10 +448,10 @@ namespace Unity.Serialization.Json
                     {
                         var key = default(TKey);
                         ReadValue(ref key, member.Key());
-                            
+
                         var value = default(TValue);
                         ReadValue(ref value, member.Value());
-                        
+
                         container.Add(key, value);
                     }
                     break;
@@ -464,7 +464,7 @@ namespace Unity.Serialization.Json
             var value = property.GetValue(ref container);
 
             var isRootProperty = property is IPropertyWrapper;
-            
+
             ReadValue(ref value, m_View, isRootProperty);
 
             if (!property.IsReadOnly)
@@ -484,7 +484,7 @@ namespace Unity.Serialization.Json
             // Special check so we have higher perf for primitives.
             if (runAdapters && !RuntimeTypeInfoCache<TValue>.IsPrimitiveOrString)
             {
-                if (m_Adapters.TryDeserialize(view, ref value))
+                if (m_Adapters.TryDeserialize(view, ref value, m_SerializedTypeProvider.Events))
                 {
                     return;
                 }
@@ -529,7 +529,7 @@ namespace Unity.Serialization.Json
                 }
                 default:
                 {
-                    var metadata = view.Type == TokenType.Object  ? GetSerializedContainerMetadata(view.AsObjectView())  : default;
+                    var metadata = view.Type == TokenType.Object ? GetSerializedContainerMetadata(view.AsObjectView()) : default;
 
                     m_SerializedTypeProvider.View = view;
                     m_SerializedTypeProvider.SerializedType = isRoot ? m_SerializedType : null;
@@ -542,10 +542,10 @@ namespace Unity.Serialization.Json
                             return;
                         }
 
-                        value = (TValue) m_SerializedReferences.GetDeserializedReference(metadata.SerializedId);
+                        value = (TValue)m_SerializedReferences.GetDeserializedReference(metadata.SerializedId);
                         return;
                     }
-                    
+
                     try
                     {
                         DefaultTypeConstruction.Construct(ref value, m_SerializedTypeProvider);
@@ -555,13 +555,13 @@ namespace Unity.Serialization.Json
                         m_SerializedTypeProvider.Events.Add(new DeserializationEvent(EventType.Exception, new ArgumentException(e.Message)));
                         return;
                     }
-                    
+
                     if (metadata.HasSerializedId)
                     {
                         // This call is harmless to skip if we don't have serialized references.
                         m_SerializedReferences?.AddDeserializedReference(metadata.SerializedId, value);
                     }
-                    
+
                     using (new SerializedContainerMetadataScope(this, metadata))
                     using (new UnsafeViewScope(this, view))
                     {
