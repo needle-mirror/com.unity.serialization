@@ -67,7 +67,20 @@ namespace Unity.Serialization.Json
 
             public int GetArrayLength()
             {
-                return View.Type == TokenType.Array ? View.AsArrayView().Count() : 0;
+                if (View.Type == TokenType.Array)
+                {
+                    return View.AsArrayView().Count();
+                }
+
+                if (View.Type == TokenType.Object)
+                {
+                    if (View.AsObjectView().TryGetValue(k_SerializedElementsKey, out var elements))
+                    {
+                        return elements.AsArrayView().Count();
+                    }
+                }
+
+                return 0;
             }
 
             public object GetDefaultObject()
