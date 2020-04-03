@@ -63,6 +63,27 @@ namespace Unity.Serialization.Json
         /// </summary>
         const int k_DefaultDepthLimit = 128;
 
+        /// <summary>
+        /// Internal struct used to track the type of comment being parsed.
+        /// </summary>
+        enum CommentType
+        {
+            /// <summary>
+            /// The comment type is not yet known. E.g. we have only encountered the first `/`.
+            /// </summary>
+            Unknown,
+            
+            /// <summary>
+            /// Single line comment prefixed with `//` and ending in `\n`.
+            /// </summary>
+            SingleLine,
+            
+            /// <summary>
+            /// Multi line comment prefixed with `/*` and ending with `*/`.
+            /// </summary>
+            MultiLine
+        }
+        
         struct TokenizeJobOutput
         {
             public Token* Tokens;
@@ -72,6 +93,7 @@ namespace Unity.Serialization.Json
             public int TokenNextIndex;
             public int TokenParentIndex;
             public ushort PrevChar;
+            public CommentType CommentType;
         }
 
         /// <summary>
@@ -93,6 +115,7 @@ namespace Unity.Serialization.Json
             public int TokensLength;
             public int TokensNextIndex;
             public int TokenParentIndex;
+            public CommentType CommentType;
             
             public Allocator Label;
 
@@ -105,6 +128,7 @@ namespace Unity.Serialization.Json
                 Output->TokenNextIndex = TokensNextIndex;
                 Output->TokenParentIndex = TokenParentIndex;
                 Output->PrevChar = PrevChar;
+                Output->CommentType = CommentType;
             }
 
             void GrowTokenBuffer()
@@ -129,21 +153,39 @@ namespace Unity.Serialization.Json
                     switch (token.Type)
                     {
                         case TokenType.String:
-                        case TokenType.Primitive:
                         {
-                            // This is the continuation of a primitive or string
-                            // Use -1 as the `Start` position to signify we are part of a partial token stream.
-                            var result = token.Type == TokenType.String
-                                ? ParseString(TokensNextIndex - 1, k_PartialTokenStart)
-                                : ParsePrimitive(TokensNextIndex - 1, k_PartialTokenStart);
+                            var result = ParseString(TokensNextIndex - 1, k_PartialTokenStart);
 
                             if (result != k_ResultSuccess)
                             {
-                                if (result == k_ResultTokenBufferOverflow)
-                                {
-                                    CharBufferPosition = 0;
-                                }
+                                Break(result);
+                                return;
+                            }
 
+                            CharBufferPosition++;
+                        }
+                            break;
+                        
+                        case TokenType.Primitive:
+                        {
+                            var result = ParsePrimitive(TokensNextIndex - 1, k_PartialTokenStart);
+
+                            if (result != k_ResultSuccess)
+                            {
+                                Break(result);
+                                return;
+                            }
+
+                            CharBufferPosition++;
+                        }
+                            break;
+                        
+                        case TokenType.Comment:
+                        {
+                            var result = ParseComment(TokensNextIndex - 1, k_PartialTokenStart);
+
+                            if (result != k_ResultSuccess)
+                            {
                                 Break(result);
                                 return;
                             }
@@ -236,6 +278,23 @@ namespace Unity.Serialization.Json
                         }
                             break;
 
+                        case '/':
+                        {
+                            CharBufferPosition++;
+                            
+                            PrevChar = 0;
+                            CommentType = CommentType.Unknown;
+                                
+                            var result = ParseComment(TokenParentIndex, CharBufferPosition + 1);
+                            
+                            if (result == k_ResultInvalidInput)
+                            {
+                                Break(result);
+                                return;
+                            }
+                        }
+                            break;
+                        
                         case '\t':
                         case '\r':
                         case ' ':
@@ -256,13 +315,12 @@ namespace Unity.Serialization.Json
                             {
                                 CharBufferPosition++;
 
-                                var start = CharBufferPosition;
-
-                                result = ParseString(TokenParentIndex, start);
-
-                                if (result == k_ResultTokenBufferOverflow)
+                                PrevChar = 0;
+                                
+                                result = ParseString(TokenParentIndex, CharBufferPosition);
+                                
+                                if (result == k_ResultInvalidInput)
                                 {
-                                    CharBufferPosition = start - 1;
                                     Break(result);
                                     return;
                                 }
@@ -273,9 +331,8 @@ namespace Unity.Serialization.Json
 
                                 result = ParsePrimitive(TokenParentIndex, start);
 
-                                if (result == k_ResultTokenBufferOverflow)
+                                if (result == k_ResultInvalidInput)
                                 {
-                                    CharBufferPosition = start - 1;
                                     Break(result);
                                     return;
                                 }
@@ -307,8 +364,6 @@ namespace Unity.Serialization.Json
 
             int ParseString(int parent, int start)
             {
-                PrevChar = 0;
-
                 for (; CharBufferPosition < CharBufferLength; CharBufferPosition++)
                 {
                     var c = CharBuffer[CharBufferPosition];
@@ -369,7 +424,8 @@ namespace Unity.Serialization.Json
                         c == ',' ||
                         c == ']' ||
                         c == '}' ||
-                        c == ':')
+                        c == ':' ||
+                        c == '=')
                     {
                         if (TokensNextIndex >= TokensLength)
                         {
@@ -413,6 +469,100 @@ namespace Unity.Serialization.Json
                 }
 
                 return k_ResultSuccess;
+            }
+
+            int ParseComment(int parent, int start)
+            {
+                for (; CharBufferPosition < CharBufferLength; CharBufferPosition++)
+                {
+                    var c = CharBuffer[CharBufferPosition];
+
+                    switch (CommentType)
+                    {
+                        case CommentType.Unknown:
+                        {
+                            switch ((char) c)
+                            {
+                                case '/':
+                                    CommentType = CommentType.SingleLine;
+                                    continue;
+                                case '*':
+                                    CommentType = CommentType.MultiLine;
+                                    continue;
+                                default:
+                                    return k_ResultInvalidInput;
+                            }
+                        }
+
+                        case CommentType.SingleLine:
+                        {
+                            switch ((char) c)
+                            {
+                                case '\n':
+                                case '\0':
+                                {
+                                    if (TokensNextIndex >= TokensLength)
+                                    {
+                                        GrowTokenBuffer();
+                                    }
+
+                                    Tokens[TokensNextIndex++] = new Token
+                                    {
+                                        Type = TokenType.Comment,
+                                        Parent = parent,
+                                        Start = start,
+                                        End = CharBufferPosition - 1
+                                    };
+
+                                    return k_ResultSuccess;
+                                }
+                            }
+                        }
+                            break;
+
+                        case CommentType.MultiLine:
+                        {
+                            if (c == '/' && PrevChar == '*')
+                            {
+                                if (TokensNextIndex >= TokensLength)
+                                {
+                                    GrowTokenBuffer();
+                                }
+
+                                Tokens[TokensNextIndex++] = new Token
+                                {
+                                    Type = TokenType.Comment,
+                                    Parent = parent,
+                                    Start = start,
+                                    End = CharBufferPosition - 1
+                                };
+                                
+                                return k_ResultSuccess;
+                            }
+                        }
+                            break;
+                    }
+
+                    PrevChar = c;
+                }
+                
+                if (CharBufferPosition >= CharBufferLength)
+                {
+                    if (TokensNextIndex >= TokensLength)
+                    {
+                        GrowTokenBuffer();
+                    }
+
+                    Tokens[TokensNextIndex++] = new Token
+                    {
+                        Type = TokenType.Comment,
+                        Parent = parent,
+                        Start = start,
+                        End = -1
+                    };
+                }
+                
+                return k_ResultEndOfStream;
             }
         }
 
@@ -537,6 +687,7 @@ namespace Unity.Serialization.Json
             public int TokenNextIndex;
             public int TokenParentIndex;
             public ushort PrevChar;
+            public CommentType CommentType;
             public JsonValidationType ValidationType;
             public JsonStandardValidator StandardValidator;
             public JsonSimpleValidator SimpleValidator;
@@ -646,6 +797,7 @@ namespace Unity.Serialization.Json
                     CharBufferLength = start + count,
                     CharBufferPosition = position,
                     PrevChar = m_Data->PrevChar,
+                    CommentType = m_Data->CommentType,
                     Tokens = m_Data->JsonTokens,
                     TokensLength = m_Data->BufferSize,
                     TokensNextIndex = m_Data->TokenNextIndex,
@@ -694,6 +846,7 @@ namespace Unity.Serialization.Json
                 m_Data->TokenNextIndex = output.TokenNextIndex;
                 m_Data->TokenParentIndex = output.TokenParentIndex;
                 m_Data->PrevChar = output.PrevChar;
+                m_Data->CommentType = output.CommentType;
 
                 if (output.TokensLength != m_Data->BufferSize)
                 {

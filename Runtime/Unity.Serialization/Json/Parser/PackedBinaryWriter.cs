@@ -78,6 +78,7 @@ namespace Unity.Serialization.Json
 
                         case TokenType.Primitive:
                         case TokenType.String:
+                        case TokenType.Comment:
                         {
                             if (inputToken.Parent == -1 || InputTokens[inputToken.Parent].Type == TokenType.Object || inputToken.End == -1)
                             {
@@ -195,6 +196,7 @@ namespace Unity.Serialization.Json
                 {
                     case TokenType.Primitive:
                     case TokenType.String:
+                    case TokenType.Comment:
                     {
                         if (inputToken.Start != -1)
                         {

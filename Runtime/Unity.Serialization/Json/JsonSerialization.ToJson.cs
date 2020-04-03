@@ -73,6 +73,8 @@ namespace Unity.Serialization.Json
             visitor.SetGlobalMigrations(GetGlobalMigrations());
             visitor.SetUserDefinedMigration(parameters.UserDefinedMigrations);
             visitor.SetSerializedReferences(serializedReferences);
+            visitor.SetMinified(parameters.Minified);
+            visitor.SetSimplified(parameters.Simplified);
             
             using (visitor.Lock()) PropertyContainer.Visit(ref container, visitor);
         }

@@ -81,7 +81,7 @@ namespace Unity.Serialization.Json
             {
                 var token = m_Tokens[index];
 
-                if (token.Length != -1 && token.Parent == start)
+                if (token.Length != -1 && token.Parent == start && token.Type != TokenType.Comment)
                 {
                     return index;
                 }
@@ -453,7 +453,7 @@ namespace Unity.Serialization.Json
             {
                 var token = GetToken(index);
 
-                if (token.Length != -1 && token.Parent == start)
+                if (token.Length != -1 && token.Parent == start && token.Type != TokenType.Comment)
                 {
                     return GetHandle(token);
                 }

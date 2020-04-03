@@ -53,6 +53,11 @@ namespace Unity.Serialization.Json
         /// End of a primitive (number, boolean, nan, etc.).
         /// </summary>
         Primitive          = 1 << 6,
+        
+        /// <summary>
+        /// End of a comment.
+        /// </summary>
+        Comment            = 1 << 7,
 
         /// <summary>
         /// Any node type.
@@ -154,6 +159,21 @@ namespace Unity.Serialization.Json
                             }
                         }
                         break;
+
+                        case TokenType.Comment:
+                        {
+                            if (token.End != -1)
+                            {
+                                node |= NodeType.Comment;
+
+                                while (token.Start == -1)
+                                {
+                                    nodeIndex = token.Parent;
+                                    token = Tokens[nodeIndex];
+                                }
+                            }
+                        }
+                        break;
                     }
 
                     if (Evaluate(node, nodeIndex))
@@ -169,7 +189,7 @@ namespace Unity.Serialization.Json
                     var index = TokenParentIndex;
                     var token = Tokens[index];
 
-                    if (token.End == -1)
+                    if (token.End == -1 && (token.Type == TokenType.Object || token.Type == TokenType.Array))
                     {
                         Break(NodeType.None);
                         return;
@@ -253,7 +273,7 @@ namespace Unity.Serialization.Json
                 {
                     var parent = Tokens[parentIndex];
 
-                    if (parent.Type != TokenType.Primitive && parent.Type != TokenType.String)
+                    if (parent.Type != TokenType.Primitive && parent.Type != TokenType.String && parent.Type != TokenType.Comment)
                     {
                         break;
                     }

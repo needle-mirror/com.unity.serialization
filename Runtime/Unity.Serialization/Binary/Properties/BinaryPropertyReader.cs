@@ -8,44 +8,22 @@ using Unity.Serialization.Binary.Adapters;
 namespace Unity.Serialization.Binary
 {
     unsafe class BinaryPropertyReader : BinaryPropertyVisitor,
+        ISerializedTypeProvider,
         IPropertyBagVisitor,
         IListPropertyBagVisitor,
         ISetPropertyBagVisitor,
         IDictionaryPropertyBagVisitor,
         IPropertyVisitor
     {
-        class SerializedTypeProvider : ISerializedTypeProvider
-        {
-            public UnsafeAppendBuffer.Reader* Stream;
-
-            public Type SerializedType { get; set; }
-
-            public Type GetSerializedType()
-                => SerializedType;
-            
-            public int GetArrayLength()
-            {
-                var pos = Stream->Offset;
-                var count = Stream->ReadNext<int>();
-                Stream->Offset = pos;
-                return count;
-            }
-            
-            public object GetDefaultObject()
-                => throw new InvalidOperationException();
-        }
-
         UnsafeAppendBuffer.Reader* m_Stream;
         Type m_SerializedType;
         bool m_DisableRootAdapters;
         BinaryAdapterCollection m_Adapters;
         SerializedReferences m_SerializedReferences;
-        readonly SerializedTypeProvider m_SerializedTypeProvider;
 
         public void SetStream(UnsafeAppendBuffer.Reader* stream)
         {
             m_Stream = stream;
-            m_SerializedTypeProvider.Stream = stream;
         }
         
         public void SetSerializedType(Type type) 
@@ -65,8 +43,7 @@ namespace Unity.Serialization.Binary
 
         public BinaryPropertyReader()
         {
-            m_Adapters.InternalAdapter = new BinaryAdapter();
-            m_SerializedTypeProvider = new SerializedTypeProvider();
+            m_Adapters.InternalAdapter = this;
         }
 
         void IPropertyBagVisitor.Visit<TContainer>(IPropertyBag<TContainer> properties, ref TContainer container)
@@ -78,6 +55,9 @@ namespace Unity.Serialization.Binary
                 // no boxing
                 foreach (var property in collection.GetProperties(ref container))
                 {
+                    if (property.HasAttribute<NonSerializedAttribute>() || property.HasAttribute<DontSerializeAttribute>())
+                        continue;
+
                     ((IPropertyAccept<TContainer>) property).Accept(this, ref container);
                 }
             }
@@ -86,6 +66,9 @@ namespace Unity.Serialization.Binary
                 // boxing
                 foreach (var property in properties.GetProperties(ref container))
                 {
+                    if (property.HasAttribute<NonSerializedAttribute>() || property.HasAttribute<DontSerializeAttribute>())
+                        continue;
+
                     ((IPropertyAccept<TContainer>) property).Accept(this, ref container);
                 }
             }
@@ -239,15 +222,15 @@ namespace Unity.Serialization.Binary
                     }
                 }
 
-                m_SerializedTypeProvider.SerializedType = concreteType;
+                m_SerializedTypeProviderSerializedType = concreteType;
             }
             else
             {
                 // If we have a user provided root type pass it to the type construction.
-                m_SerializedTypeProvider.SerializedType = isRoot ? m_SerializedType : null;
+                m_SerializedTypeProviderSerializedType = isRoot ? m_SerializedType : null;
             }
             
-            DefaultTypeConstruction.Construct(ref value, m_SerializedTypeProvider);
+            DefaultTypeConstruction.Construct(ref value, this);
 
             if (RuntimeTypeInfoCache<TValue>.IsObjectType && !RuntimeTypeInfoCache.IsContainerType(value.GetType()))
             {
@@ -269,6 +252,26 @@ namespace Unity.Serialization.Binary
                         throw new Exception($"Unexpected {nameof(VisitErrorCode)}=[{errorCode}]");
                 }
             }
+        }
+        
+        Type m_SerializedTypeProviderSerializedType;
+
+        Type ISerializedTypeProvider.GetSerializedType()
+        {
+            return m_SerializedTypeProviderSerializedType;
+        }
+
+        int ISerializedTypeProvider.GetArrayLength()
+        {
+            var pos = m_Stream->Offset;
+            var count = m_Stream->ReadNext<int>();
+            m_Stream->Offset = pos;
+            return count;
+        }
+
+        object ISerializedTypeProvider.GetDefaultObject()
+        {
+            throw new InvalidOperationException();
         }
     }
 }

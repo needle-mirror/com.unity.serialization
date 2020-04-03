@@ -75,43 +75,6 @@ namespace Unity.Serialization.Json
             public int SerializedVersion;
         }
 
-        struct WriteSerializedContainerMetadataScope<TContainer> : IDisposable
-        {
-            readonly JsonPropertyWriter m_Writer;
-            readonly SerializedContainerMetadata m_Metadata;
-            
-            public WriteSerializedContainerMetadataScope(JsonPropertyWriter writer, ref TContainer container, SerializedContainerMetadata metadata)
-            {
-                m_Writer = writer;
-                m_Metadata = metadata;
-
-                if (m_Metadata.Exists)
-                {
-                    m_Writer.m_Writer.Write("{\n");
-                    m_Writer.Indent++;
-
-                    writer.WriteSerializedContainerMetadata(ref container, m_Metadata);
-                
-                    m_Writer.m_Writer.Write(",\n");
-                    m_Writer.m_Writer.Write(' ', Style.Space * m_Writer.Indent);
-                    m_Writer.m_Writer.Write("\"");
-                    m_Writer.m_Writer.Write(k_SerializedElementsKey);
-                    m_Writer.m_Writer.Write("\": ");
-                }
-            }
-
-            public void Dispose()
-            {
-                if (m_Metadata.Exists)
-                {
-                    m_Writer.Indent--;
-                    m_Writer.m_Writer.Write('\n');
-                    m_Writer.m_Writer.Write(' ', Style.Space * m_Writer.Indent);
-                    m_Writer.m_Writer.Write('}');
-                }
-            }
-        }
-
         /// <summary>
         /// Constants for styling and special keys.
         /// </summary>
@@ -150,6 +113,8 @@ namespace Unity.Serialization.Json
         JsonAdapterCollection m_Adapters;
         JsonMigrationCollection m_Migrations;
         SerializedReferences m_SerializedReferences;
+        bool m_Minified;
+        bool m_Simplified;
         
         public void SetStringWriter(JsonStringBuffer writer)
             => m_Writer = writer;
@@ -174,6 +139,12 @@ namespace Unity.Serialization.Json
 
         public void SetSerializedReferences(SerializedReferences serializedReferences)
             => m_SerializedReferences = serializedReferences;
+        
+        public void SetMinified(bool minified)
+            => m_Minified = minified;
+        
+        public void SetSimplified(bool simplified)
+            => m_Simplified = simplified;
         
         public JsonPropertyWriter()
         {
@@ -224,15 +195,13 @@ namespace Unity.Serialization.Json
             return metadata;
         }
 
-        int WriteSerializedContainerMetadata<TContainer>(ref TContainer container, SerializedContainerMetadata metadata)
+        void WriteSerializedContainerMetadata<TContainer>(ref TContainer container, SerializedContainerMetadata metadata, ref int count)
         {
-            var count = 0;
-
             if (metadata.HasSerializedId)
             {
                 using (CreatePropertyScope(s_SerializedIdProperty))
                 {
-                    if (count++ > 0) m_Writer.Write(",\n");
+                    WriteMemberSeparator(ref count);
                     var serializedId = new SerializedId {Id = metadata.SerializedId};
                     ((IPropertyAccept<SerializedId>) s_SerializedIdProperty).Accept(this, ref serializedId);
                 }
@@ -242,7 +211,7 @@ namespace Unity.Serialization.Json
             {
                 using (CreatePropertyScope(s_SerializedTypeProperty))
                 {
-                    if (count++ > 0) m_Writer.Write(",\n");
+                    WriteMemberSeparator(ref count);
                     var typeInfo = new SerializedType {Type = container.GetType()};
                     ((IPropertyAccept<SerializedType>) s_SerializedTypeProperty).Accept(this, ref typeInfo);
                 }
@@ -252,23 +221,147 @@ namespace Unity.Serialization.Json
             {
                 using (CreatePropertyScope(s_SerializedVersionProperty))
                 {
-                    if (count++ > 0) m_Writer.Write(",\n");
+                    WriteMemberSeparator(ref count);
                     var serializedVersion = new SerializedVersion {Version = metadata.SerializedVersion};
                     ((IPropertyAccept<SerializedVersion>) s_SerializedVersionProperty).Accept(this, ref serializedVersion);
                 }
             }
+        }
+        
+        void WriteBeginObject()
+        {  
+            m_Writer.Write('{');
 
-            return count;
+            if (!m_Minified)
+                Indent++;
+        }
+
+        void WriteEndObject(int memberCount)
+        {  
+            if (!m_Minified)
+            {
+                Indent--;
+                
+                if (memberCount > 0)
+                    WriteIndent();
+            }
+            
+            m_Writer.Write('}');
+        }
+        
+        void WriteBeginCollection()
+        {  
+            m_Writer.Write('[');
+
+            if (!m_Minified)
+            {
+                Indent++;
+            }
+        }
+        
+        void WriteEndCollection(int memberCount)
+        {  
+            if (!m_Minified)
+            {
+                Indent--;
+                
+                if (memberCount > 0)
+                    WriteIndent();
+            }
+            
+            m_Writer.Write(']');
+        }
+
+        void WriteIndent()
+        {
+            if (m_Minified) 
+                return;
+            
+            m_Writer.Write('\n');
+            m_Writer.Write(' ', Style.Space * Indent);
+        }
+        
+        void WriteMemberSeparator(ref int memberCount)
+        {
+            if (!m_Simplified)
+            {
+                if (memberCount > 0) 
+                    m_Writer.Write(',');
+
+                if (!m_Minified)
+                    WriteIndent();
+            }
+            else
+            {
+                if (!m_Minified)
+                    WriteIndent();
+                else if (memberCount > 0)
+                    m_Writer.Write(' ');
+            }
+
+            memberCount++;
         }
 
         void WriteSerializedReference(int id)
         {
-            m_Writer.Write("{ ");
-            m_Writer.Write("\"");
-            m_Writer.Write(k_SerializedReference);
-            m_Writer.Write("\": ");
+            m_Writer.Write('{');
+            
+            if (!m_Minified) 
+                m_Writer.Write(' ');
+
+            WritePropertyName(k_SerializedReferenceKey);
+            
             m_Writer.Write(id);
-            m_Writer.Write(" }");
+            
+            if (!m_Minified) 
+                m_Writer.Write(' ');
+            
+            m_Writer.Write('}');
+        }
+
+        void WritePropertyName(string name)
+        {
+            var useQuotes = !m_Simplified || ContainsAnySpecialCharacters(name);
+
+            if (useQuotes) 
+                m_Writer.Write('\"');
+            
+            m_Writer.Write(name);
+            
+            if (useQuotes) 
+                m_Writer.Write('\"');
+            
+            if (!m_Minified && m_Simplified)
+                m_Writer.Write(' ');
+            
+            m_Writer.Write(m_Simplified ? '=' : ':');
+            
+            if (!m_Minified) 
+                m_Writer.Write(' ');
+        }
+
+        static unsafe bool ContainsAnySpecialCharacters(string key)
+        {
+            fixed (char* chars = key)
+            {
+                for (var i = 0; i < key.Length; i++)
+                {
+                    var c = chars[i];
+                    if (c == ' ' ||
+                        c == '\t' ||
+                        c == '\r' ||
+                        c == '\n' ||
+                        c == '\0' ||
+                        c == ',' ||
+                        c == ']' ||
+                        c == '}' ||
+                        c == ':' ||
+                        c == '=')
+                        return true;
+                }
+            }
+
+            return false;
         }
         
         void IPropertyBagVisitor.Visit<TContainer>(IPropertyBag<TContainer> properties, ref TContainer container)
@@ -286,12 +379,9 @@ namespace Unity.Serialization.Json
                     WriteSerializedReference(metadata.SerializedId);
                     return;
                 }
-                
-                m_Writer.Write("{\n");
-                
-                Indent++;
 
-                count += WriteSerializedContainerMetadata(ref container, metadata);
+                WriteBeginObject();
+                WriteSerializedContainerMetadata(ref container, metadata, ref count);
             }
 
             if (properties is IPropertyList<TContainer> propertyList)
@@ -304,7 +394,7 @@ namespace Unity.Serialization.Json
                     
                     using (CreatePropertyScope(property))
                     {
-                        if (count++ > 0) m_Writer.Write(",\n");
+                        if (!isRootContainer) WriteMemberSeparator(ref count);
                         ((IPropertyAccept<TContainer>) property).Accept(this, ref container);
                     }
                 }
@@ -319,7 +409,7 @@ namespace Unity.Serialization.Json
                     
                     using (CreatePropertyScope(property))
                     {
-                        if (count++ > 0) m_Writer.Write(",\n");
+                        if (!isRootContainer) WriteMemberSeparator(ref count);
                         ((IPropertyAccept<TContainer>) property).Accept(this, ref container);
                     }
                 }
@@ -327,10 +417,7 @@ namespace Unity.Serialization.Json
 
             if (!isRootContainer)
             {
-                if (count > 0) m_Writer.Write('\n');
-                Indent--;
-                m_Writer.Write(' ', Style.Space * Indent);
-                m_Writer.Write('}');
+                WriteEndObject(count);
             }
         }
 
@@ -344,28 +431,34 @@ namespace Unity.Serialization.Json
                 return;
             }
             
-            using (new WriteSerializedContainerMetadataScope<TCollection>(this, ref container, metadata))
+            var metadataCount = 0;
+
+            if (metadata.Exists)
             {
-                m_Writer.Write("[\n");
-                Indent++;
+                WriteBeginObject();
+                WriteSerializedContainerMetadata(ref container, metadata, ref metadataCount);
+                WriteMemberSeparator(ref metadataCount);
+                WritePropertyName(k_SerializedElementsKey);
+            }
+            
+            WriteBeginCollection();
 
-                var count = 0;
+            var elementCount = 0;
 
-                foreach (var property in properties.GetProperties(ref container))
+            foreach (var property in properties.GetProperties(ref container))
+            {
+                using (CreatePropertyScope(property))
                 {
-                    using (CreatePropertyScope(property))
-                    {
-                        if (count++ > 0) m_Writer.Write(",\n");
-                        ((IPropertyAccept<TCollection>) property).Accept(this, ref container);
-                    }
+                    WriteMemberSeparator(ref elementCount);
+                    ((IPropertyAccept<TCollection>) property).Accept(this, ref container);
                 }
+            }
 
-                if (count > 0) m_Writer.Write('\n');
+            WriteEndCollection(elementCount);
 
-                Indent--;
-
-                m_Writer.Write(' ', Style.Space * Indent);
-                m_Writer.Write(']');
+            if (metadata.Exists)
+            {
+                WriteEndObject(metadataCount);
             }
         }
 
@@ -379,84 +472,93 @@ namespace Unity.Serialization.Json
                 return;
             }
             
-            using (new WriteSerializedContainerMetadataScope<TList>(this, ref container, metadata))
+            var metadataCount = 0;
+            
+            if (metadata.Exists)
             {
-                m_Writer.Write("[\n");
-                Indent++;
+                WriteBeginObject();
+                WriteSerializedContainerMetadata(ref container, metadata, ref metadataCount);
+                WriteMemberSeparator(ref metadataCount);
+                WritePropertyName(k_SerializedElementsKey);
+            }
+            
+            WriteBeginCollection();
 
-                var count = 0;
-
-                foreach (var property in properties.GetProperties(ref container))
+            var elementCount = 0;
+            
+            foreach (var property in properties.GetProperties(ref container))
+            {
+                using (CreatePropertyScope(property))
                 {
-                    using (CreatePropertyScope(property))
-                    {
-                        if (count++ > 0) m_Writer.Write(",\n");
-                        ((IPropertyAccept<TList>) property).Accept(this, ref container);
-                    }
+                    WriteMemberSeparator(ref elementCount);
+                    ((IPropertyAccept<TList>) property).Accept(this, ref container);
                 }
-
-                if (count > 0) m_Writer.Write('\n');
-
-                Indent--;
-
-                m_Writer.Write(' ', Style.Space * Indent);
-                m_Writer.Write(']');
+            }
+            
+            WriteEndCollection(elementCount);
+            
+            if (metadata.Exists)
+            {
+                WriteEndObject(metadataCount);
             }
         }
 
         void IDictionaryPropertyBagVisitor.Visit<TDictionary, TKey, TValue>(IDictionaryPropertyBag<TDictionary, TKey, TValue> properties, ref TDictionary container)
         {
-            var metadata = GetSerializedContainerMetadata(ref container);
-
-            if (metadata.IsSerializedReference)
+            if (typeof(TKey) != typeof(string))
             {
-                WriteSerializedReference(metadata.SerializedId);
-                return;
+                ((ICollectionPropertyBagVisitor) this).Visit(properties, ref container);
             }
-
-            using (new WriteSerializedContainerMetadataScope<TDictionary>(this, ref container, metadata))
+            else
             {
-                if (typeof(TKey) != typeof(string))
+                var metadata = GetSerializedContainerMetadata(ref container);
+
+                if (metadata.IsSerializedReference)
                 {
-                    ((ICollectionPropertyBagVisitor) this).Visit(properties, ref container);
+                    WriteSerializedReference(metadata.SerializedId);
                     return;
                 }
 
-                m_Writer.Write("{\n");
-                Indent++;
-
-                var count = 0;
-
+                var metadataCount = 0;
+            
+                if (metadata.Exists)
+                {
+                    WriteBeginObject();
+                    WriteSerializedContainerMetadata(ref container, metadata, ref metadataCount);
+                    WriteMemberSeparator(ref metadataCount);
+                    WritePropertyName(k_SerializedElementsKey);
+                }
+                
+                WriteBeginObject();
+                
+                var elementCount = 0;
+                
                 // @FIXME allocations
                 var property = new DictionaryElementProperty<TDictionary, TKey, TValue>();
 
                 foreach (var kvp in container)
                 {
-                    if (count++ > 0) m_Writer.Write(",\n");
+                    WriteMemberSeparator(ref elementCount);
                     property.Key = kvp.Key;
                     ((IPropertyAccept<TDictionary>) property).Accept(this, ref container);
                 }
 
-                if (count > 0) m_Writer.Write('\n');
-
-                Indent--;
-
-                m_Writer.Write(' ', Style.Space * Indent);
-                m_Writer.Write('}');
+                WriteEndObject(elementCount);
+    
+                if (metadata.Exists)
+                {
+                    WriteEndObject(metadataCount);
+                }
             }
         }
 
         void IPropertyVisitor.Visit<TContainer, TValue>(Property<TContainer, TValue> property, ref TContainer container)
         {
-            m_Writer.Write(' ', Style.Space * Indent);
-            
             var isRootProperty = property is IPropertyWrapper;
 
             if (!isRootProperty && !(property is ICollectionElementProperty))
             {
-                m_Writer.Write('"');
-                m_Writer.Write(property.Name);
-                m_Writer.Write("\": ");
+                WritePropertyName(property.Name);
             }
 
             var value = property.GetValue(ref container);

@@ -144,12 +144,12 @@ namespace Unity.Serialization.Json
             return s_SharedDeserializationEvents;
         }
 
-        static SerializedObjectReaderConfiguration GetDefaultConfigurationForString(string json)
+        static SerializedObjectReaderConfiguration GetDefaultConfigurationForString(string json, JsonSerializationParameters parameters = default)
         {
             var configuration = SerializedObjectReaderConfiguration.Default;
             
             configuration.UseReadAsync = false;
-            configuration.ValidationType = JsonValidationType.Standard;
+            configuration.ValidationType = parameters.Simplified ? JsonValidationType.Simple : JsonValidationType.Standard;
             configuration.BlockBufferSize = math.max(json.Length * sizeof(char), 16);
             configuration.TokenBufferSize = math.max(json.Length / 2, 16);
             configuration.OutputBufferSize = math.max(json.Length * sizeof(char), 16);
@@ -157,7 +157,7 @@ namespace Unity.Serialization.Json
             return configuration;
         }
         
-        static SerializedObjectReaderConfiguration GetDefaultConfigurationForFile(FileInfo file)
+        static SerializedObjectReaderConfiguration GetDefaultConfigurationForFile(FileInfo file, JsonSerializationParameters parameters = default)
         {
             var configuration = SerializedObjectReaderConfiguration.Default;
 
@@ -167,19 +167,19 @@ namespace Unity.Serialization.Json
             }
 
             configuration.UseReadAsync = file.Length > 512 << 10;
-            configuration.ValidationType = JsonValidationType.Standard;
+            configuration.ValidationType = parameters.Simplified ? JsonValidationType.Simple : JsonValidationType.Standard;
             configuration.BlockBufferSize = math.min((int) file.Length, 512 << 10); // 512 kb max
             configuration.OutputBufferSize = math.min((int) file.Length, 1024 << 10); // 1 mb max
 
             return configuration;
         }
         
-        static SerializedObjectReaderConfiguration GetDefaultConfigurationForStream(Stream stream)
+        static SerializedObjectReaderConfiguration GetDefaultConfigurationForStream(Stream stream, JsonSerializationParameters parameters = default)
         {
             var configuration = SerializedObjectReaderConfiguration.Default;
 
             configuration.UseReadAsync = stream.Length > 512 << 10;
-            configuration.ValidationType = JsonValidationType.Standard;
+            configuration.ValidationType = parameters.Simplified ? JsonValidationType.Simple : JsonValidationType.Standard;
             configuration.BlockBufferSize = math.min((int) stream.Length, 512 << 10); // 512 kb max
             configuration.OutputBufferSize = math.min((int) stream.Length, 1024 << 10); // 1 mb max
 
@@ -253,7 +253,7 @@ namespace Unity.Serialization.Json
             {
                 fixed (char* ptr = json)
                 {
-                    using (var reader = new SerializedObjectReader(new UnsafeBuffer<char>(ptr, json.Length), GetDefaultConfigurationForString(json)))
+                    using (var reader = new SerializedObjectReader(new UnsafeBuffer<char>(ptr, json.Length), GetDefaultConfigurationForString(json, parameters)))
                     {
                         return TryFromJson(reader, ref container, out result, parameters);
                     }
@@ -319,7 +319,7 @@ namespace Unity.Serialization.Json
         /// <returns>True if the deserialization succeeded; otherwise, false.</returns>
         public static bool TryFromJsonOverride<T>(FileInfo file, ref T container, out DeserializationResult result, JsonSerializationParameters parameters = default)
         {
-            using (var reader = new SerializedObjectReader(file.FullName, GetDefaultConfigurationForFile(file)))
+            using (var reader = new SerializedObjectReader(file.FullName, GetDefaultConfigurationForFile(file, parameters)))
             {
                 return TryFromJson(reader, ref container, out result, parameters);
             }
@@ -383,7 +383,7 @@ namespace Unity.Serialization.Json
         /// <returns>True if the deserialization succeeded; otherwise, false.</returns>
         public static bool TryFromJsonOverride<T>(Stream stream, ref T container, out DeserializationResult result, JsonSerializationParameters parameters = default)
         {
-            using (var reader = new SerializedObjectReader(stream, GetDefaultConfigurationForStream(stream)))
+            using (var reader = new SerializedObjectReader(stream, GetDefaultConfigurationForStream(stream, parameters)))
             {
                 return TryFromJson(reader, ref container, out result, parameters);
             }

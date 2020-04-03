@@ -40,7 +40,7 @@ namespace Unity.Serialization.Binary
 
         public BinaryPropertyWriter()
         {
-            m_Adapters.InternalAdapter = new BinaryAdapter();
+            m_Adapters.InternalAdapter = this;
         }
 
         void IPropertyBagVisitor.Visit<TContainer>(IPropertyBag<TContainer> properties, ref TContainer container)

@@ -241,7 +241,7 @@ namespace Unity.Serialization.Json
                     metadata.SerializedId = member.Value().AsInt32();
                 }
 
-                if (name.Equals(k_SerializedReference))
+                if (name.Equals(k_SerializedReferenceKey))
                 {
                     metadata.IsSerializedReference = true;
                     metadata.SerializedId = member.Value().AsInt32();

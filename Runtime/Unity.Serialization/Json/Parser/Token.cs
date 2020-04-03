@@ -26,8 +26,6 @@ namespace Unity.Serialization.Json
 
         /// <summary>
         /// The token holds a reference to all characters between string characters '"'..'"'.
-        ///
-        /// @NOTE This includes the "begin" and "end" double quote characters.
         /// </summary>
         String,
 
@@ -35,6 +33,11 @@ namespace Unity.Serialization.Json
         /// Holds a reference to characters that represent any value that does not fit into the above categories.
         /// </summary>
         Primitive,
+        
+        /// <summary>
+        /// The token holds a reference to all characters of a comment block.
+        /// </summary>
+        Comment
     }
     
     struct Token

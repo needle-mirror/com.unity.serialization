@@ -54,6 +54,16 @@ namespace Unity.Serialization.Json
         /// By default, references between objects are serialized. Use this to always write a copy of the object to the output.
         /// </summary>
         public bool DisableSerializedReferences { get; set; }
+        
+        /// <summary>
+        /// Use this parameter to write minified json.
+        /// </summary>
+        public bool Minified { get; set; }
+        
+        /// <summary>
+        /// Use this parameter to write simplified json.
+        /// </summary>
+        public bool Simplified { get; set; }
     }
     
     /// <summary>

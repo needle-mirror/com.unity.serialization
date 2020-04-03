@@ -13,7 +13,7 @@ namespace Unity.Serialization.Json
         /// <summary>
         /// The key used when an object is a serialized reference. This member will refers to the <see cref="k_SerializedId"/> of another object.
         /// </summary>
-        internal const string k_SerializedReference = "$ref";
+        internal const string k_SerializedReferenceKey = "$ref";
         
         /// <summary>
         /// The key used when writing out custom type information.

@@ -1,11 +1,10 @@
 using System;
+using Unity.Serialization.Binary.Adapters;
 
 namespace Unity.Serialization.Binary
 {
-    abstract class BinaryPropertyVisitor
+    abstract class BinaryPropertyVisitor : BinaryAdapter
     {
-        protected const int k_SizeOfToken = sizeof(byte);
-        
         protected const byte k_TokenNone = 0;
         protected const byte k_TokenNull = 1;
         protected const byte k_TokenPolymorphic = 2;
