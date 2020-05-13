@@ -212,6 +212,9 @@ namespace Unity.Serialization.Json
         public void SetUserDefinedMigrations(List<IJsonMigration> migrations)
             => m_Migrations.UserDefined = migrations;
 
+        public void SetUserData(object userData)
+            => m_Migrations.UserData = userData;
+
         public void SetEvents(List<DeserializationEvent> events)
             => m_SerializedTypeProvider.Events = events;
 

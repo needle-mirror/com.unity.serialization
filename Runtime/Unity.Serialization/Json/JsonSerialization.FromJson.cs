@@ -412,6 +412,7 @@ namespace Unity.Serialization.Json
             visitor.SetUserDefinedAdapters(parameters.UserDefinedAdapters);
             visitor.SetGlobalMigrations(GetGlobalMigrations());
             visitor.SetUserDefinedMigrations(parameters.UserDefinedMigrations);
+            visitor.SetUserData(parameters.UserData);
             visitor.SetEvents(events);
             visitor.SetSerializedReferences(serializedReferences);
             

@@ -9,6 +9,7 @@ namespace Unity.Serialization.Json.Adapters
     {
         public List<IJsonMigration> Global;
         public List<IJsonMigration> UserDefined;
+        public object UserData;
         
         public bool TryGetSerializedVersion<TValue>(out int version)
         {
@@ -54,7 +55,7 @@ namespace Unity.Serialization.Json.Adapters
                 }
             }
 
-            var context = new JsonMigrationContext(serializedVersion, view.AsSafe(), typeof(TValue), reader);
+            var context = new JsonMigrationContext(serializedVersion, view.AsSafe(), typeof(TValue), UserData, reader);
 
             switch (migration)
             {

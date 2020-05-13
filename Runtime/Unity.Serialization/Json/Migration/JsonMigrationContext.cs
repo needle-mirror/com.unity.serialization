@@ -23,6 +23,11 @@ namespace Unity.Serialization.Json.Adapters
         /// The serialized type as reported by the underlying stream. This can be used in contravariant migrations. 
         /// </summary>
         public readonly Type SerializedType;
+
+        /// <summary>
+        /// The user data provided in deserialization parameters.
+        /// </summary>
+        public readonly object UserData;
         
         /// <summary>
         /// The internal visitor, used to re-enter in to normal deserialization.
@@ -36,11 +41,12 @@ namespace Unity.Serialization.Json.Adapters
         /// <param name="serializedObject">The view over the serialized data.</param>
         /// <param name="serializedType">The serialized type from the stream.</param>
         /// <param name="visitor">The current deserialization visitor, used for re-entry into normal deserialization.</param>
-        internal JsonMigrationContext(int serializedVersion, SerializedObjectView serializedObject, Type serializedType, JsonPropertyReader visitor)
+        internal JsonMigrationContext(int serializedVersion, SerializedObjectView serializedObject, Type serializedType, object userData, JsonPropertyReader visitor)
         {
             SerializedVersion = serializedVersion;
             SerializedObject = serializedObject;
             SerializedType = serializedType;
+            UserData = userData;
             m_Visitor = visitor;
         }
 

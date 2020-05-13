@@ -119,6 +119,52 @@ namespace Unity.Serialization.Binary
 
         internal static unsafe void WritePrimitiveUnsafe<TValue>(UnsafeAppendBuffer* stream, ref TValue value, Type type)
         {
+#if UNITY_2020_1_OR_NEWER
+            switch (Type.GetTypeCode(type))
+            {
+                case TypeCode.SByte:
+                    stream->Add(UnsafeUtility.As<TValue, sbyte>(ref value));
+                    return;
+                case TypeCode.Int16:
+                    stream->Add(UnsafeUtility.As<TValue, short>(ref value));
+                    return;
+                case TypeCode.Int32:
+                    stream->Add(UnsafeUtility.As<TValue, int>(ref value));
+                    return;
+                case TypeCode.Int64:
+                    stream->Add(UnsafeUtility.As<TValue, long>(ref value));
+                    return;
+                case TypeCode.Byte:
+                    stream->Add(UnsafeUtility.As<TValue, byte>(ref value));
+                    return;
+                case TypeCode.UInt16:
+                    stream->Add(UnsafeUtility.As<TValue, ushort>(ref value));
+                    return;
+                case TypeCode.UInt32:
+                    stream->Add(UnsafeUtility.As<TValue, uint>(ref value));
+                    return;
+                case TypeCode.UInt64:
+                    stream->Add(UnsafeUtility.As<TValue, ulong>(ref value));
+                    return;
+                case TypeCode.Single:
+                    stream->Add(UnsafeUtility.As<TValue, float>(ref value));
+                    return;
+                case TypeCode.Double:
+                    stream->Add(UnsafeUtility.As<TValue, double>(ref value));
+                    return;
+                case TypeCode.Boolean:
+                    stream->Add(UnsafeUtility.As<TValue, bool>(ref value) ? (byte) 1 : (byte) 0);
+                    return;
+                case TypeCode.Char:
+                    stream->Add(UnsafeUtility.As<TValue, char>(ref value));
+                    return;
+                case TypeCode.String:
+                    stream->Add(value as string);
+                    return;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+#else
             switch (Type.GetTypeCode(type))
             {
                 case TypeCode.SByte:
@@ -163,6 +209,7 @@ namespace Unity.Serialization.Binary
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+#endif
         } 
         
         internal static unsafe void WritePrimitiveBoxed(UnsafeAppendBuffer* stream, object value, Type type)
@@ -215,6 +262,66 @@ namespace Unity.Serialization.Binary
         
         internal static unsafe void ReadPrimitiveUnsafe<TValue>(UnsafeAppendBuffer.Reader* stream, ref TValue value, Type type)
         {
+#if UNITY_2020_1_OR_NEWER
+            switch (Type.GetTypeCode(type))
+            {
+                case TypeCode.SByte:
+                    stream->ReadNext<sbyte>(out var _sbyte);
+                    value = UnsafeUtility.As<sbyte, TValue>(ref _sbyte);
+                    return;
+                case TypeCode.Int16:
+                    stream->ReadNext<short>(out var _short);
+                    value = UnsafeUtility.As<short, TValue>(ref _short);
+                    return;
+                case TypeCode.Int32:
+                    stream->ReadNext<int>(out var _int);
+                    value = UnsafeUtility.As<int, TValue>(ref _int);
+                    return;
+                case TypeCode.Int64:
+                    stream->ReadNext<long>(out var _long);
+                    value = UnsafeUtility.As<long, TValue>(ref _long);
+                    return;
+                case TypeCode.Byte:
+                    stream->ReadNext<byte>(out var _byte);
+                    value = UnsafeUtility.As<byte, TValue>(ref _byte);
+                    return;
+                case TypeCode.UInt16:
+                    stream->ReadNext<ushort>(out var _ushort);
+                    value = UnsafeUtility.As<ushort, TValue>(ref _ushort);
+                    return;
+                case TypeCode.UInt32:
+                    stream->ReadNext<uint>(out var _uint);
+                    value = UnsafeUtility.As<uint, TValue>(ref _uint);
+                    return;
+                case TypeCode.UInt64:
+                    stream->ReadNext<ulong>(out var _ulong);
+                    value = UnsafeUtility.As<ulong, TValue>(ref _ulong);
+                    return;
+                case TypeCode.Single:
+                    stream->ReadNext<float>(out var _float);
+                    value = UnsafeUtility.As<float, TValue>(ref _float);
+                    return;
+                case TypeCode.Double:
+                    stream->ReadNext<double>(out var _double);
+                    value = UnsafeUtility.As<double, TValue>(ref _double);
+                    return;
+                case TypeCode.Boolean:
+                    stream->ReadNext<byte>(out var _boolean);
+                    var b = _boolean == 1;
+                    value = UnsafeUtility.As<bool, TValue>(ref b);
+                    return;
+                case TypeCode.Char:
+                    stream->ReadNext<char>(out var _char);
+                    value = UnsafeUtility.As<char, TValue>(ref _char);
+                    return;
+                case TypeCode.String:
+                    stream->ReadNext(out string _string);
+                    value = (TValue) (object) _string;
+                    return;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+#else
             switch (Type.GetTypeCode(type))
             {
                 case TypeCode.SByte:
@@ -273,6 +380,7 @@ namespace Unity.Serialization.Binary
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+#endif
         }
 
         internal static unsafe void ReadPrimitiveBoxed<TValue>(UnsafeAppendBuffer.Reader* stream, ref TValue value, Type type)

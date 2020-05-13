@@ -38,6 +38,11 @@ namespace Unity.Serialization.Json
         public List<IJsonMigration> UserDefinedMigrations { get; set; }
 
         /// <summary>
+        /// Stores user data which is passed to the migration adapter context.
+        /// </summary>
+        public object UserData { get; set; }
+
+        /// <summary>
         /// The initial capacity (in characters) to use for the internal writer if none is provided. The default value is 32.
         /// </summary>
         public int InitialCapacity { get; set; }
