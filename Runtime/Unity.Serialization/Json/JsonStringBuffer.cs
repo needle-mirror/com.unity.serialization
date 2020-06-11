@@ -12,17 +12,17 @@ namespace Unity.Serialization.Json
     public unsafe struct JsonStringBuffer : IDisposable
     {
         const int k_MinimumCapacity = 32;
-        
+
         struct Data
         {
             public char* Buffer;
             public int Capacity;
             public int Length;
         }
-        
+
         readonly Allocator m_Label;
         Data* m_Data;
-        
+
         /// <summary>
         /// Initializes a new instance of <see cref="JsonStringBuffer"/>.
         /// </summary>
@@ -35,7 +35,7 @@ namespace Unity.Serialization.Json
             m_Data->Buffer = null;
             m_Data->Capacity = 0;
             m_Data->Length = 0;
-            
+
             SetCapacity(initialCapacity);
         }
 
@@ -44,63 +44,75 @@ namespace Unity.Serialization.Json
         {
             if (m_Label != Allocator.Invalid)
                 UnsafeUtility.Free(m_Data->Buffer, m_Label);
-            
+
             UnsafeUtility.Free(m_Data, m_Label);
             m_Data = null;
         }
-        
+
         /// <summary>
         /// Writes the string representation of a specified 32-bit signed integer to the buffer.
         /// </summary>
         /// <param name="value">The value to write.</param>
         public void Write(int value)
         {
-            Write(FixedString.Format("{0}", value));
+            FixedString128 f = default;
+            f.Format(value);
+            Write(f);
         }
-        
+
         /// <summary>
         /// Writes the string representation of a specified 32-bit unsigned integer to the buffer.
         /// </summary>
         /// <param name="value">The value to write.</param>
         public void Write(uint value)
         {
-            Write(FixedString.Format("{0}", value));
+            FixedString128 f = default;
+            f.Format(value);
+            Write(f);
         }
-        
+
         /// <summary>
         /// Writes the string representation of a specified 64-bit signed integer to the buffer.
         /// </summary>
         /// <param name="value">The value to write.</param>
         public void Write(long value)
         {
-            Write(FixedString.Format("{0}", value));
+            FixedString128 f = default;
+            f.Format(value);
+            Write(f);
         }
-        
+
         /// <summary>
         /// Writes the string representation of a specified 64-bit unsigned integer to the buffer.
         /// </summary>
         /// <param name="value">The value to write.</param>
         public void Write(ulong value)
         {
-            Write(value.ToString(CultureInfo.InvariantCulture));
+            FixedString128 f = default;
+            f.Format(value);
+            Write(f);
         }
-        
+
         /// <summary>
-        /// Writes the string representation of a specified 32-bit floating-point number to the buffer. This method will allocate.
+        /// Writes the string representation of a specified 32-bit floating-point number to the buffer.
         /// </summary>
         /// <param name="value">The value to write.</param>
         public void Write(float value)
         {
-            Write(FixedString.Format("{0}", value));
+            FixedString128 f = default;
+            f.Format(value);
+            Write(f);
         }
-        
+
         /// <summary>
-        /// Writes the string representation of a specified 64-bit floating-point number to the buffer. This method will allocate.
+        /// Writes the string representation of a specified 64-bit floating-point number to the buffer.
         /// </summary>
         /// <param name="value">The value to write.</param>
         public void Write(double value)
         {
-            Write(value.ToString(CultureInfo.InvariantCulture));
+            FixedString128 f = default;
+            f.Format((float)value);
+            Write(f);
         }
 
         /// <summary>
@@ -112,7 +124,7 @@ namespace Unity.Serialization.Json
             EnsureCapacity(1);
             m_Data->Buffer[m_Data->Length++] = value;
         }
-        
+
         /// <summary>
         /// Writes a specified number of copies of the string representation of a unicode character to the buffer.
         /// </summary>
@@ -124,7 +136,7 @@ namespace Unity.Serialization.Json
             for (var i=0; i<repeatCount; i++)
                 m_Data->Buffer[m_Data->Length++] = value;
         }
-        
+
         /// <summary>
         /// Writes a copy of the specified string to the buffer.
         /// </summary>
@@ -155,7 +167,7 @@ namespace Unity.Serialization.Json
             UnsafeUtility.MemCpy(m_Data->Buffer + m_Data->Length, buffer, length * sizeof(char));
             m_Data->Length += length;
         }
-        
+
         /// <summary>
         /// Writes a copy of the specified string to the buffer with surrounding quotes and escape characters.
         /// </summary>
@@ -200,7 +212,7 @@ namespace Unity.Serialization.Json
 
             Write('"');
         }
-        
+
         /// <summary>
         /// Writes the specified unicode character to the buffer with surrounding quotes and escape characters.
         /// </summary>
@@ -208,7 +220,7 @@ namespace Unity.Serialization.Json
         public void WriteEncodedJsonString(char value)
         {
             Write('"');
-            
+
             switch (value)
             {
                 case '\\':
@@ -236,24 +248,25 @@ namespace Unity.Serialization.Json
                     Write(value);
                     break;
             }
-            
+
             Write('"');
         }
-        
+
         /// <summary>
         /// Writes a copy of the specified <see cref="FixedString128"/> to the buffer.
         /// </summary>
         /// <param name="value">The value to write.</param>
         void Write(FixedString128 value)
         {
-            var capacity = value.UTF8LengthInBytes;
-            var utf16_buffer = stackalloc char[capacity];
+            void* valuep = UnsafeUtility.AddressOf(ref value);
+            ushort valuelen = *(ushort*) valuep;
+            byte* valuebytes = (byte*) valuep + sizeof(ushort);
 
-            fixed (FixedListByte128* c = &value.AsFixedList)
-            {
-                Unicode.Utf8ToUtf16((byte*) c + sizeof(ushort), value.UTF8LengthInBytes, utf16_buffer, out var utf16_length, capacity);
-                Write(utf16_buffer, utf16_length);
-            }
+            var utf16_buffer = stackalloc char[valuelen];
+
+            // This is not actually correct -- We need Utf8ToUCS but that doesn't exist
+            Unicode.Utf8ToUtf16(valuebytes, valuelen, utf16_buffer, out var utf16_length, valuelen);
+            Write(utf16_buffer, utf16_length);
         }
 
         void WriteNull()
@@ -261,7 +274,7 @@ namespace Unity.Serialization.Json
             var chars = stackalloc char[4] {'n', 'u', 'l', 'l'};
             Write(chars, 4);
         }
-        
+
         void SetCapacity(int targetCapacity)
         {
             if (targetCapacity <= m_Data->Capacity)
@@ -270,9 +283,9 @@ namespace Unity.Serialization.Json
             }
 
             targetCapacity = targetCapacity < k_MinimumCapacity ? k_MinimumCapacity : math.ceilpow2(targetCapacity);
-            
+
             var buffer = (char*) UnsafeUtility.Malloc(targetCapacity * sizeof(char), UnsafeUtility.AlignOf<char>(), m_Label);
-            
+
             if (m_Data->Buffer != null)
             {
                 UnsafeUtility.MemCpy(buffer, m_Data->Buffer, m_Data->Length * sizeof(char));

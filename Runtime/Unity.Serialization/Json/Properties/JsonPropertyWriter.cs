@@ -106,7 +106,6 @@ namespace Unity.Serialization.Json
         /// </summary>
         int Indent { get; set; }
 
-        HashSet<object> m_Visited;
         JsonStringBuffer m_Writer;
         Type m_RootType;
         bool m_DisableRootAdapters;
