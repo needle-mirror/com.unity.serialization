@@ -4,6 +4,26 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.4.3] - 2020-08-04
+### Changed
+* Update `com.unity.properties` to version `1.4.3-preview`.
+
+### Added
+* Added built-in support for serialize/deserialize `System.Version` in Json.
+
+## [1.4.2] - 2020-08-03
+### Changed
+* Update `com.unity.properties` to version `1.4.2-preview`.
+
+## [1.4.1] - 2020-07-31
+### Changed
+* Update `com.unity.properties` to version `1.4.1-preview`.
+
+
+## [1.4.0] - 2020-07-30
+### Changed
+* Update `com.unity.properties` to version `1.4.0-preview`.
+
 ## [1.3.1] - 2020-06-11
 ### Changed
 * Update `com.unity.properties` to version `1.3.1-preview`.

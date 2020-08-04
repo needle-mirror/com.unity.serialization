@@ -6,7 +6,8 @@ namespace Unity.Serialization.Json.Adapters
     partial class JsonAdapter :
         IJsonAdapter<Guid>,
         IJsonAdapter<DateTime>,
-        IJsonAdapter<TimeSpan>
+        IJsonAdapter<TimeSpan>,
+        IJsonAdapter<Version>
     {
         void IJsonAdapter<Guid>.Serialize(JsonStringBuffer writer, Guid value)
             => writer.WriteEncodedJsonString(value.ToString("N", CultureInfo.InvariantCulture));
@@ -25,5 +26,11 @@ namespace Unity.Serialization.Json.Adapters
 
         TimeSpan IJsonAdapter<TimeSpan>.Deserialize(SerializedValueView view)
             => TimeSpan.TryParseExact(view.ToString(), "c", CultureInfo.InvariantCulture, out var value) ? value : default;
+        
+        public void Serialize(JsonStringBuffer writer, Version value)
+            => writer.WriteEncodedJsonString(value.ToString());
+
+        public Version Deserialize(SerializedValueView view)
+            => new Version(view.ToString());
     }
 }
