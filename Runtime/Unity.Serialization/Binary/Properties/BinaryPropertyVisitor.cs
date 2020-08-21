@@ -1,3 +1,4 @@
+#if !NET_DOTS
 using System;
 using Unity.Serialization.Binary.Adapters;
 
@@ -48,3 +49,4 @@ namespace Unity.Serialization.Binary
             => new LockScope(this);
     }
 }
+#endif

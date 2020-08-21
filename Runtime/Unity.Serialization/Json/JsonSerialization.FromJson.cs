@@ -1,3 +1,4 @@
+#if !NET_DOTS
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -435,3 +436,4 @@ namespace Unity.Serialization.Json
             => events.Count > 0 ? new DeserializationResult(events.ToList()) : default;
     }
 }
+#endif

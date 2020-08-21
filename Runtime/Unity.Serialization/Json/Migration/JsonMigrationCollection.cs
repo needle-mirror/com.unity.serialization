@@ -1,3 +1,4 @@
+#if !NET_DOTS
 using System;
 using System.Collections.Generic;
 using Unity.Serialization.Json.Unsafe;
@@ -115,3 +116,4 @@ namespace Unity.Serialization.Json.Adapters
         }
     }
 }
+#endif

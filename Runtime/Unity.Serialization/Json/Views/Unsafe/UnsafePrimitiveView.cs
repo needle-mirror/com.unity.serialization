@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace Unity.Serialization.Json.Unsafe
 {
     readonly struct UnsafePrimitiveView
@@ -12,7 +10,7 @@ namespace Unity.Serialization.Json.Unsafe
             m_Stream = stream;
             m_TokenIndex = tokenIndex;
         }
-        
+
         /// <summary>
         /// Returns a string view over the primitive.
         /// </summary>
@@ -47,7 +45,7 @@ namespace Unity.Serialization.Json.Unsafe
             var chars = (char*) (ptr + sizeof(int));
             return Convert.MatchesNaN(chars, len);
         }
-        
+
         /// <summary>
         /// Returns true if the primitive represents a value that is null.
         /// </summary>
@@ -101,7 +99,7 @@ namespace Unity.Serialization.Json.Unsafe
             var chars = (char*) (ptr + sizeof(int));
             return Convert.MatchesTrue(chars, length) || Convert.MatchesFalse(chars, length);
         }
-        
+
         /// <summary>
         /// Reinterprets the primitive as a long.
         /// </summary>
@@ -150,18 +148,20 @@ namespace Unity.Serialization.Json.Unsafe
             return value;
         }
 
+#if !NET_DOTS
         /// <summary>
         /// Reinterprets the primitive as a double.
         /// </summary>
         /// <remarks>
-        /// This method relies on a string allocation for <see cref="double.Parse(string)"/>. 
+        /// This method relies on a string allocation for <see cref="double.Parse(string)"/>.
         /// </remarks>
         /// <returns>The primitive as a double.</returns>
         public double AsDouble()
         {
-            return double.Parse(AsString(), NumberStyles.Any, CultureInfo.InvariantCulture);
+            return double.Parse(AsString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture);
         }
-        
+#endif
+
         /// <summary>
         /// Reinterprets the primitive as a bool.
         /// </summary>
@@ -185,7 +185,7 @@ namespace Unity.Serialization.Json.Unsafe
 
             throw new ParseErrorException($"Failed to parse Value=[{AsString()}] as Type=[{typeof(bool)}]");
         }
-        
+
         /// <summary>
         /// Allocates and returns a new <see cref="string"/> for the primitive.
         /// </summary>

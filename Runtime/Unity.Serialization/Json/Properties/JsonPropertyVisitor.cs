@@ -1,3 +1,4 @@
+#if !NET_DOTS
 using System;
 using Unity.Properties;
 
@@ -100,3 +101,4 @@ namespace Unity.Serialization.Json
             => new LockScope(this);
     }
 }
+#endif

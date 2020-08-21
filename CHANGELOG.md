@@ -4,6 +4,14 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2020-08-21
+### Added
+* Added unsafe constructor overload to `SerializedObjectReader` that takes `char*` and length.
+
+### Changed
+* Enabled minimal support for `NET_DOTS`. Low level tokenization and parsing is now available.
+* Updated `com.unity.properties` to version `1.5.0-preview`.
+  
 ## [1.4.3] - 2020-08-04
 ### Changed
 * Update `com.unity.properties` to version `1.4.3-preview`.
@@ -19,7 +27,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 * Update `com.unity.properties` to version `1.4.1-preview`.
 
-
 ## [1.4.0] - 2020-07-30
 ### Changed
 * Update `com.unity.properties` to version `1.4.0-preview`.
@@ -27,7 +34,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [1.3.1] - 2020-06-11
 ### Changed
 * Update `com.unity.properties` to version `1.3.1-preview`.
-  
+
 ## [1.3.0] - 2020-05-13
 ### Added
 * Added `UserData` parameter to `JsonSerializationParameters` which can be retrieved during migration in `JsonMigrationContext`.

@@ -1,3 +1,4 @@
+#if !NET_DOTS
 using System;
 using System.Collections.Generic;
 using Unity.Collections.LowLevel.Unsafe;
@@ -55,7 +56,12 @@ namespace Unity.Serialization.Binary
                 // no boxing
                 foreach (var property in collection.GetProperties(ref container))
                 {
-                    if (property.HasAttribute<NonSerializedAttribute>() || property.HasAttribute<DontSerializeAttribute>())
+#if !UNITY_DOTSPLAYER
+                    if (property.HasAttribute<NonSerializedAttribute>())
+                        continue;
+#endif
+                    
+                    if (property.HasAttribute<DontSerializeAttribute>())
                         continue;
 
                     ((IPropertyAccept<TContainer>) property).Accept(this, ref container);
@@ -66,7 +72,12 @@ namespace Unity.Serialization.Binary
                 // boxing
                 foreach (var property in properties.GetProperties(ref container))
                 {
-                    if (property.HasAttribute<NonSerializedAttribute>() || property.HasAttribute<DontSerializeAttribute>())
+#if !UNITY_DOTSPLAYER
+                    if (property.HasAttribute<NonSerializedAttribute>())
+                        continue;
+#endif
+                    
+                    if (property.HasAttribute<DontSerializeAttribute>())
                         continue;
 
                     ((IPropertyAccept<TContainer>) property).Accept(this, ref container);
@@ -275,3 +286,4 @@ namespace Unity.Serialization.Binary
         }
     }
 }
+#endif

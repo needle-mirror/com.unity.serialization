@@ -77,8 +77,12 @@ namespace Unity.Serialization.Json.Unsafe
         public int Count()
         {
             var count = 0;
-            
-            for (int index = m_Stream.GetFirstChildIndex(m_TokenIndex), end = m_TokenIndex + m_Stream.GetToken(m_TokenIndex).Length; index < end;)
+
+            var length = m_Stream.GetToken(m_TokenIndex).Length;
+            if (length == 1)
+                return 0;
+
+            for (int index = m_Stream.GetFirstChildIndex(m_TokenIndex), end = m_TokenIndex + length; index < end;)
             {
                 index += m_Stream.GetToken(index).Length;
                 count++;

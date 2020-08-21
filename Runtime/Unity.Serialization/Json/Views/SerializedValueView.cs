@@ -158,6 +158,7 @@ namespace Unity.Serialization.Json
             return AsPrimitiveView().AsFloat();
         }
 
+#if !NET_DOTS
         /// <summary>
         /// Reinterprets the value as a double.
         /// </summary>
@@ -166,7 +167,8 @@ namespace Unity.Serialization.Json
         {
             return AsPrimitiveView().AsDouble();
         }
-
+#endif
+        
         /// <summary>
         /// Reinterprets the value as a bool.
         /// </summary>

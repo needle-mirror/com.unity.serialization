@@ -369,7 +369,7 @@ namespace Unity.Serialization.Json
                     Handles = m_Data->Handles,
                     BinaryTokens = m_Data->Tokens,
                     StartIndex = 0
-                }.Run(initialTokensCapacity);
+                }.Schedule(initialTokensCapacity, initialTokensCapacity).Complete();
             }
             
             m_Data->TokenNextIndex = 0;
@@ -486,12 +486,14 @@ namespace Unity.Serialization.Json
             m_Data->Tokens = Resize(m_Data->Tokens, fromLength, newLength, m_Label);
             m_Data->Handles = Resize(m_Data->Handles, fromLength, newLength, m_Label);
 
+            var count = newLength - fromLength;
+            
             new InitializeJob
             {
                 Handles = m_Data->Handles,
                 BinaryTokens = m_Data->Tokens,
                 StartIndex = fromLength
-            }.Run(newLength - fromLength);
+            }.Schedule(count, count).Complete();
             
             m_Data->TokensCapacity = newLength;
         }
@@ -512,7 +514,7 @@ namespace Unity.Serialization.Json
         /// </summary>
         public void Clear()
         {
-            new ClearJob { Handles = m_Data->Handles }.Run(m_Data->TokenNextIndex);
+            new ClearJob { Handles = m_Data->Handles }.Schedule(m_Data->TokenNextIndex, m_Data->TokenNextIndex).Complete();
             m_Data->TokenNextIndex = 0;
             m_Data->TokenParentIndex = -1;
             m_Data->BufferPosition = 0;
@@ -539,7 +541,11 @@ namespace Unity.Serialization.Json
 
             if (output.Result == k_ResultStackOverflow)
             {
+#if !NET_DOTS
                 throw new StackOverflowException();
+#else
+                throw new Exception("Stack Overflow");
+#endif
             }
 
             m_Data->TokenNextIndex = output.TokenNextIndex;

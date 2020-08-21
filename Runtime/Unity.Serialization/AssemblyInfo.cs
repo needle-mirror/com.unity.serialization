@@ -3,3 +3,4 @@
 [assembly: InternalsVisibleTo("Unity.Entities")]
 [assembly: InternalsVisibleTo("Unity.Serialization.Tests")]
 [assembly: InternalsVisibleTo("Unity.Serialization.PerformanceTests")]
+[assembly: InternalsVisibleTo("Unity.RuntimeSceneSerialization")]

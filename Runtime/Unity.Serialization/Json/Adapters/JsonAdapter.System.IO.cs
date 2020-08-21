@@ -1,3 +1,4 @@
+#if !NET_DOTS
 using System.IO;
 
 namespace Unity.Serialization.Json.Adapters
@@ -61,3 +62,4 @@ namespace Unity.Serialization.Json.Adapters
         }
     }
 }
+#endif

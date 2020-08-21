@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace Unity.Serialization.Json
 {
     /// <summary>
@@ -164,6 +162,7 @@ namespace Unity.Serialization.Json
             return value;
         }
 
+#if !NET_DOTS
         /// <summary>
         /// Reinterprets the primitive as a double.
         /// </summary>
@@ -173,8 +172,9 @@ namespace Unity.Serialization.Json
         /// <returns>The primitive as a double.</returns>
         public double AsDouble()
         {
-            return double.Parse(AsString(), NumberStyles.Any, CultureInfo.InvariantCulture);
+            return double.Parse(AsString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture);
         }
+#endif
 
         /// <summary>
         /// Reinterprets the primitive as a bool.

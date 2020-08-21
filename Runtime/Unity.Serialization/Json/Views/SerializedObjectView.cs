@@ -253,6 +253,7 @@ namespace Unity.Serialization.Json
             return true;
         }
         
+#if !NET_DOTS
         /// <summary>
         /// Gets the value associated with the specified key as a <see cref="double"/>.
         /// </summary>
@@ -273,6 +274,7 @@ namespace Unity.Serialization.Json
             value = primitive.AsDouble();
             return true;
         }
+#endif
         
         /// <summary>
         /// Gets the value associated with the specified key as a <see cref="bool"/>.

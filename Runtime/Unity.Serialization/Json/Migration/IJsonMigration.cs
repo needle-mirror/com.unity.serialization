@@ -1,3 +1,4 @@
+#if !NET_DOTS
 namespace Unity.Serialization.Json.Adapters
 {
     /// <summary>
@@ -49,3 +50,4 @@ namespace Unity.Serialization.Json.Adapters
         }
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if !NET_DOTS
 using System;
 using System.Collections.Generic;
 using Unity.Serialization.Json.Adapters;
@@ -157,3 +158,4 @@ namespace Unity.Serialization.Json
         static List<IJsonMigration> GetGlobalMigrations() => s_Migrations;
     }
 }
+#endif

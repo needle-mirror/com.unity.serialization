@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+
+#if !UNITY_DOTSPLAYER
 using System.Linq;
 using System.Reflection;
+#endif
 
 namespace Unity.Serialization
 {
@@ -49,7 +52,7 @@ namespace Unity.Serialization
                     s_FormerlySerializedAsToCurrentName.Add(attribute.OldName, $"{type}, {type.Assembly.GetName().Name}");
                 }
             }
-#else
+#elif !UNITY_DOTSPLAYER
             var types = AppDomain.CurrentDomain.GetAssemblies()
                                       .SelectMany(a => a.GetTypes())
                                       .Where(t => !(t.IsAbstract || t.IsGenericType));

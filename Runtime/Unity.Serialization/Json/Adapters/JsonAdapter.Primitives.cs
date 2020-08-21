@@ -1,3 +1,4 @@
+#if !NET_DOTS
 using System;
 
 namespace Unity.Serialization.Json.Adapters
@@ -71,3 +72,4 @@ namespace Unity.Serialization.Json.Adapters
             => throw new NotImplementedException($"This code should never be executed. {nameof(JsonPropertyReader)} should handle primitives in a specialized way.");
     }
 }
+#endif

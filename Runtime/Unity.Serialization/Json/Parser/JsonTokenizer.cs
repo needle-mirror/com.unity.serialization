@@ -896,7 +896,11 @@ namespace Unity.Serialization.Json
 
             if (output.Result == k_ResultStackOverflow)
             {
+#if !NET_DOTS
                 throw new StackOverflowException($"Tokenization depth limit of {depth} exceeded.");
+#else
+                throw new Exception($"Tokenization depth limit of {depth} exceeded.");
+#endif
             }
 
             m_Data->TokenNextIndex = output.NextTokenIndex;

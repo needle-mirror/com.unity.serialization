@@ -1,3 +1,4 @@
+#if !NET_DOTS
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -7,19 +8,6 @@ using System.Threading.Tasks;
 
 namespace Unity.Serialization.Json
 {
-    interface IUnsafeStreamBlockReader : IDisposable
-    {
-        /// <summary>
-        /// Resets the reader for re-use.
-        /// </summary>
-        void Reset();
-        
-        /// <summary>
-        /// Returns the next block in the stream.
-        /// </summary>
-        UnsafeBuffer<char> GetNextBlock();
-    }
-    
     /// <summary>
     /// Helper struct to store a managed array of chars.
     /// </summary>
@@ -187,3 +175,4 @@ namespace Unity.Serialization.Json
         }
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if !NET_DOTS
 using System;
 using Unity.Properties;
 using Unity.Properties.Internal;
@@ -199,3 +200,4 @@ namespace Unity.Serialization.Json.Adapters
         }
     }
 }
+#endif

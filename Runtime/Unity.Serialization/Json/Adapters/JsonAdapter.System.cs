@@ -1,3 +1,4 @@
+#if !NET_DOTS
 using System;
 using System.Globalization;
 
@@ -34,3 +35,4 @@ namespace Unity.Serialization.Json.Adapters
             => new Version(view.ToString());
     }
 }
+#endif

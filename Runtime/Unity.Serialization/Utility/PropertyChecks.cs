@@ -1,3 +1,4 @@
+#if !NET_DOTS
 using System;
 using Unity.Properties;
 
@@ -62,3 +63,4 @@ namespace Unity.Serialization
         }
     }
 }
+#endif

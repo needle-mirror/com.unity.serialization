@@ -1,5 +1,8 @@
 using System;
+
+#if !NET_DOTS
 using System.Runtime.Serialization;
+#endif
 
 namespace Unity.Serialization
 {
@@ -28,6 +31,7 @@ namespace Unity.Serialization
 
         }
 
+#if !NET_DOTS
         /// <summary>
         /// Initializes a new instance of the <see cref="ParseErrorException" /> class with serialized data.
         /// </summary>
@@ -37,5 +41,6 @@ namespace Unity.Serialization
             : base(info, context)
         {
         }
+#endif
     }
 }

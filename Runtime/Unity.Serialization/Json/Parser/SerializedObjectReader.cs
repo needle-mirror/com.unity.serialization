@@ -1,11 +1,27 @@
 using System;
-using System.IO;
-using System.Text;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 
+#if !NET_DOTS
+using System.IO;
+using System.Text;
+#endif
+
 namespace Unity.Serialization.Json
-{
+{    
+    interface IUnsafeStreamBlockReader : IDisposable
+    {
+        /// <summary>
+        /// Resets the reader for re-use.
+        /// </summary>
+        void Reset();
+        
+        /// <summary>
+        /// Returns the next block in the stream.
+        /// </summary>
+        UnsafeBuffer<char> GetNextBlock();
+    }
+    
     /// <summary>
     /// Parameters used to configure the <see cref="SerializedObjectReader"/>.
     /// </summary>
@@ -70,17 +86,7 @@ namespace Unity.Serialization.Json
         readonly PackedBinaryWriter m_BinaryWriter;
 
         UnsafeBuffer<char> m_Block;
-
-        static Stream OpenFileStreamWithConfiguration(string path, SerializedObjectReaderConfiguration configuration)
-        {
-            if (configuration.BlockBufferSize < 16)
-            {
-                throw new ArgumentException("SerializedObjectReaderConfiguration.BlockBufferSize < 16");
-            }
-
-            return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, configuration.BlockBufferSize, configuration.UseReadAsync ? FileOptions.Asynchronous : FileOptions.None);
-        }
-
+        
         static PackedBinaryStream OpenBinaryStreamWithConfiguration(SerializedObjectReaderConfiguration configuration, Allocator label)
         {
             if (configuration.TokenBufferSize < 16)
@@ -94,6 +100,17 @@ namespace Unity.Serialization.Json
             }
 
             return new PackedBinaryStream(configuration.TokenBufferSize, configuration.OutputBufferSize, label);
+        }
+        
+#if !NET_DOTS
+        static Stream OpenFileStreamWithConfiguration(string path, SerializedObjectReaderConfiguration configuration)
+        {
+            if (configuration.BlockBufferSize < 16)
+            {
+                throw new ArgumentException("SerializedObjectReaderConfiguration.BlockBufferSize < 16");
+            }
+
+            return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, configuration.BlockBufferSize, configuration.UseReadAsync ? FileOptions.Asynchronous : FileOptions.None);
         }
 
         static TextReader CreateTextReader(Stream stream, SerializedObjectReaderConfiguration configuration, bool leaveInputOpen)
@@ -217,6 +234,32 @@ namespace Unity.Serialization.Json
             m_BinaryWriter = new PackedBinaryWriter(m_BinaryStream, m_Tokenizer, label);
             m_Block = default;
         }
+#endif
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SerializedObjectReader"/> class based on the specified input buffer and configuration.
+        /// </summary>
+        /// <param name="buffer">The pointer to the input buffer.</param>
+        /// <param name="length">The input buffer length.</param>
+        /// <param name="configuration">The configuration parameters to use for the reader.</param>
+        /// <param name="label">The memory allocator label to use.</param>
+        public unsafe SerializedObjectReader(char* buffer, int length, SerializedObjectReaderConfiguration configuration, Allocator label = SerializationConfiguration.DefaultAllocatorLabel)
+            : this(new UnsafeBuffer<char>(buffer, length), OpenBinaryStreamWithConfiguration(configuration, label), configuration, label)
+        {
+        }
+        
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SerializedObjectReader"/> class based on the specified input buffer, output stream and configuration.
+        /// </summary>
+        /// <param name="buffer">The pointer to the input buffer.</param>
+        /// <param name="length">The input buffer length.</param>
+        /// <param name="output">The output stream.</param>
+        /// <param name="configuration">The configuration parameters to use for the reader.</param>
+        /// <param name="label">The memory allocator label to use.</param>
+        public unsafe SerializedObjectReader(char* buffer, int length, PackedBinaryStream output, SerializedObjectReaderConfiguration configuration, Allocator label = SerializationConfiguration.DefaultAllocatorLabel)
+            : this(new UnsafeBuffer<char>(buffer, length), output, configuration, label)
+        {
+        }
 
         internal SerializedObjectReader(UnsafeBuffer<char> buffer, SerializedObjectReaderConfiguration configuration, Allocator label = SerializationConfiguration.DefaultAllocatorLabel)
             : this(buffer, OpenBinaryStreamWithConfiguration(configuration, label), configuration, label)
@@ -314,13 +357,13 @@ namespace Unity.Serialization.Json
         /// Reads the next node as a <see cref="SerializedObjectView"/>
         /// </summary>
         /// <returns>The <see cref="SerializedObjectView"/> that was read.</returns>
-        /// <exception cref="InvalidDataException">The reader state is invalid.</exception>
+        /// <exception cref="InvalidOperationException">The reader state is invalid.</exception>
         public SerializedObjectView ReadObject()
         {
             FillBuffers();
             if (!CheckNextTokenType(TokenType.Object))
             {
-                throw new InvalidDataException($"Invalid token read Expected=[{TokenType.Object}] but Received=[{GetNextTokenType()}]");
+                throw new InvalidOperationException($"Invalid token read Expected=[{TokenType.Object}] but Received=[{GetNextTokenType()}]");
             }
             Read(out var view);
             return view.AsObjectView();
@@ -330,14 +373,14 @@ namespace Unity.Serialization.Json
         /// Reads the next node as a <see cref="SerializedMemberView"/>.
         /// </summary>
         /// <returns></returns>
-        /// <exception cref="InvalidDataException">The reader state is invalid.</exception>
+        /// <exception cref="InvalidOperationException">The reader state is invalid.</exception>
         public SerializedMemberView ReadMember()
         {
             FillBuffers();
             var nextTokenType = GetNextTokenType();
             if (nextTokenType != TokenType.String && nextTokenType != TokenType.Primitive)
             {
-                throw new InvalidDataException($"Invalid token read Expected=[{TokenType.String}|{TokenType.Primitive}] but Received=[{GetNextTokenType()}]");
+                throw new InvalidOperationException($"Invalid token read Expected=[{TokenType.String}|{TokenType.Primitive}] but Received=[{GetNextTokenType()}]");
             }
             Read(out var view);
             return view.AsMemberView();

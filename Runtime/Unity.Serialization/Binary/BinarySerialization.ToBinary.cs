@@ -1,3 +1,4 @@
+#if !NET_DOTS
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Properties;
 using Unity.Properties.Internal;
@@ -31,3 +32,4 @@ namespace Unity.Serialization.Binary
         }
     }
 }
+#endif

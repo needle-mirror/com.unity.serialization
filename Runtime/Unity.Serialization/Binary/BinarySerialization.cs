@@ -1,3 +1,4 @@
+#if !NET_DOTS
 using System;
 using System.Collections.Generic;
 using Unity.Collections.LowLevel.Unsafe;
@@ -433,3 +434,4 @@ namespace Unity.Serialization.Binary
         }
     }
 }
+#endif

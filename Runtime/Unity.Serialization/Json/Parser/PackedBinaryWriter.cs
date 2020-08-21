@@ -337,7 +337,7 @@ namespace Unity.Serialization.Json
                 BinaryTokens = data->Tokens,
                 BinaryTokenStart = data->TokenNextIndex,
                 BinaryBuffer = data->Buffer
-            }.Run(count);
+            }.Schedule(count, count).Complete();
 
             m_Data->InputTokenNextIndex = output.InputTokenNextIndex;
             m_Data->InputTokenParentIndex = output.InputTokenParentIndex;

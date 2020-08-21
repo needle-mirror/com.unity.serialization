@@ -1,3 +1,4 @@
+#if !NET_DOTS
 using System.Collections.Generic;
 using Unity.Properties;
 using Unity.Properties.Internal;
@@ -169,3 +170,4 @@ namespace Unity.Serialization
         }
     }
 }
+#endif

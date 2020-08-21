@@ -1,3 +1,4 @@
+#if !NET_DOTS
 using System.IO;
 using Unity.Collections;
 using Unity.Properties;
@@ -80,3 +81,4 @@ namespace Unity.Serialization.Json
         }
     }
 }
+#endif

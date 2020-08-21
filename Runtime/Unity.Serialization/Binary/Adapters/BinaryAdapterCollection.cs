@@ -1,3 +1,4 @@
+#if !NET_DOTS
 using System.Collections.Generic;
 using Unity.Collections.LowLevel.Unsafe;
 
@@ -98,3 +99,4 @@ namespace Unity.Serialization.Binary.Adapters
         }
     }
 }
+#endif
