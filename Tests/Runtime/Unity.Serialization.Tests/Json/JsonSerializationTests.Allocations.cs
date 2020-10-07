@@ -23,7 +23,7 @@ namespace Unity.Serialization.Json.Tests
                 var container = new StructWithInt32Property();
                 GCAllocTest.Method(() =>
                            {
-                               using (var writer = new JsonStringBuffer(16, Allocator.Temp))
+                               using (var writer = new JsonWriter(16, Allocator.Temp))
                                {
                                    JsonSerialization.ToJson(writer, container);
                                }

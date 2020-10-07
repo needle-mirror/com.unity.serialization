@@ -1,6 +1,7 @@
 #if !NET_DOTS
 using System;
 using System.Collections.Generic;
+using Unity.Collections;
 using Unity.Properties;
 using Unity.Properties.Internal;
 using Unity.Serialization.Json.Unsafe;
@@ -13,7 +14,7 @@ namespace Unity.Serialization.Json.Adapters
         public List<IJsonAdapter> Global;
         public List<IJsonAdapter> UserDefined;
 
-        public bool TrySerialize<TValue>(JsonStringBuffer writer, ref TValue value)
+        public bool TrySerialize<TValue>(JsonWriter writer, ref TValue value)
         {
             if (null != UserDefined && UserDefined.Count > 0)
             {
@@ -52,17 +53,33 @@ namespace Unity.Serialization.Json.Adapters
             return false;
         }
 
-        static bool TrySerializeAdapter<TValue>(IJsonAdapter adapter, JsonStringBuffer writer, ref TValue value)
+        static bool TrySerializeAdapter<TValue>(IJsonAdapter adapter, JsonWriter writer, ref TValue value)
         {
             if (adapter is IJsonAdapter<TValue> typed)
             {
-                typed.Serialize(writer, value);
+                using (var buffer = new JsonStringBuffer(16, Allocator.TempJob))
+                {
+                    typed.Serialize(buffer, value);
+                    
+                    unsafe
+                    {
+                        writer.AsUnsafe().WriteValueLiteral(buffer.GetUnsafePtr(), buffer.Length);
+                    }
+                }
                 return true;
             }
 
             if (adapter is Adapters.Contravariant.IJsonAdapter<TValue> typedContravariant)
             {
-                typedContravariant.Serialize(writer, value);
+                using (var buffer = new JsonStringBuffer(16, Allocator.TempJob))
+                {
+                    typedContravariant.Serialize(buffer, value);
+                    
+                    unsafe
+                    {
+                        writer.AsUnsafe().WriteValueLiteral(buffer.GetUnsafePtr(), buffer.Length);
+                    }
+                }
                 return true;
             }
 
@@ -144,7 +161,7 @@ namespace Unity.Serialization.Json.Adapters
         const string k_LazyLoadReference_InstanceID = "m_InstanceID";
         static readonly string s_EmptyGlobalObjectId = new UnityEditor.GlobalObjectId().ToString();
 
-        static bool TrySerializeLazyLoadReference<TValue>(JsonStringBuffer writer, ref TValue value)
+        static bool TrySerializeLazyLoadReference<TValue>(JsonWriter writer, ref TValue value)
         {
             if (!RuntimeTypeInfoCache<TValue>.IsLazyLoadReference)
             {
@@ -152,15 +169,7 @@ namespace Unity.Serialization.Json.Adapters
             }
 
             var instanceID = PropertyContainer.GetValue<TValue, int>(ref value, k_LazyLoadReference_InstanceID);
-#if UNITY_2020_1_OR_NEWER
-            writer.WriteEncodedJsonString(UnityEditor.GlobalObjectId.GetGlobalObjectIdSlow(instanceID).ToString());
-#else
-            var asset = UnityEditor.EditorUtility.InstanceIDToObject(instanceID);
-            // Here if asset is null and false, and instanceID is NOT zero, it means we have an unloaded asset
-            // that still has a valid pptr but we are going to serialize it as null and lose the reference.
-            // Only way to fix this would be to backport GlobalObjectId.GetGlobalObjectIdSlow(instanceID).
-            writer.WriteEncodedJsonString(UnityEditor.GlobalObjectId.GetGlobalObjectIdSlow(asset).ToString());
-#endif
+            writer.WriteValue(UnityEditor.GlobalObjectId.GetGlobalObjectIdSlow(instanceID).ToString());
             return true;
         }
 

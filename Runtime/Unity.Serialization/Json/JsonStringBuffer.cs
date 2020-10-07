@@ -21,6 +21,18 @@ namespace Unity.Serialization.Json
 
         readonly Allocator m_Label;
         Data* m_Data;
+        
+        /// <summary>
+        /// The current number of characters in the buffer.
+        /// </summary>
+        /// <value>The character count.</value>
+        internal int Length => m_Data->Length;
+            
+        /// <summary>
+        /// Gets a pointer to the memory buffer containing the characters.
+        /// </summary>
+        /// <returns>A pointer to the memory buffer.</returns>
+        internal char* GetUnsafePtr() => m_Data->Buffer;
 
         /// <summary>
         /// Initializes a new instance of <see cref="JsonStringBuffer"/>.

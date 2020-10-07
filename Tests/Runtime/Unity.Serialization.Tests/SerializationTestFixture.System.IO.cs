@@ -1,10 +1,12 @@
+#if !NET_DOTS
 using System.IO;
 using NUnit.Framework;
 using Unity.Properties;
 
-namespace Unity.Serialization.Json.Tests
+namespace Unity.Serialization.Tests
 {
-    partial class JsonSerializationTests
+    [TestFixture]
+    partial class SerializationTestFixture
     {
         [GeneratePropertyBag]
         class ClassWithSystemIOTypes
@@ -40,3 +42,4 @@ namespace Unity.Serialization.Json.Tests
         }
     }
 }
+#endif

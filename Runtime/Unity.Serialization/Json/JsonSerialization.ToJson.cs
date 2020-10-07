@@ -1,4 +1,5 @@
 #if !NET_DOTS
+using System;
 using System.IO;
 using Unity.Collections;
 using Unity.Properties;
@@ -36,13 +37,13 @@ namespace Unity.Serialization.Json
         /// <returns>A json string.</returns>
         public static string ToJson<T>(T value, JsonSerializationParameters parameters = default)
         {
-            using (var writer = new JsonStringBuffer(parameters.InitialCapacity, Allocator.Temp))
+            using (var writer = new JsonWriter(parameters.InitialCapacity, Allocator.Temp, new JsonWriterOptions {Minified = parameters.Minified, Simplified = parameters.Simplified}))
             {
                 ToJson(writer, value, parameters);
                 return writer.ToString();
             }
         }
-        
+
         /// <summary>
         /// Writes a property container the specified buffer.
         /// </summary>
@@ -50,7 +51,28 @@ namespace Unity.Serialization.Json
         /// <param name="value">The container to write.</param>
         /// <param name="parameters">The parameters to use when writing.</param>
         /// <typeparam name="T">The type to serialize.</typeparam>
+        [Obsolete("JsonStringBuffer has been deprecated. Use JsonWriter instead. (RemovedAfter 2020-09-15)")]
         public static void ToJson<T>(JsonStringBuffer buffer, T value, JsonSerializationParameters parameters = default)
+        {
+            using (var writer = new JsonWriter(parameters.InitialCapacity, Allocator.Temp, new JsonWriterOptions {Minified = parameters.Minified, Simplified = parameters.Simplified}))
+            {
+                ToJson(writer, value, parameters);
+
+                unsafe
+                {
+                    buffer.Write(writer.AsUnsafe().GetUnsafeReadOnlyPtr(), writer.AsUnsafe().Length);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Writes a property container the specified buffer.
+        /// </summary>
+        /// <param name="writer">The buffer to write the object to.</param>
+        /// <param name="value">The container to write.</param>
+        /// <param name="parameters">The parameters to use when writing.</param>
+        /// <typeparam name="T">The type to serialize.</typeparam>
+        public static void ToJson<T>(JsonWriter writer, T value, JsonSerializationParameters parameters = default)
         {
             var container = new PropertyWrapper<T>(value);
             
@@ -66,7 +88,7 @@ namespace Unity.Serialization.Json
 
             var visitor = parameters.RequiresThreadSafety || s_SharedJsonPropertyWriter.IsLocked ? new JsonPropertyWriter() : GetSharedJsonPropertyWriter();
             
-            visitor.SetStringWriter(buffer);
+            visitor.SetWriter(writer);
             visitor.SetSerializedType(parameters.SerializedType);
             visitor.SetDisableRootAdapters(parameters.DisableRootAdapters);
             visitor.SetGlobalAdapters(GetGlobalAdapters());

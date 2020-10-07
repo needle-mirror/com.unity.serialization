@@ -317,6 +317,11 @@ namespace Unity.Serialization.Json
         
         internal UnsafeObjectView AsUnsafe() => new UnsafeObjectView(m_Stream.AsUnsafe(), m_Stream.GetTokenIndex(m_Handle));
         
+        /// <summary>
+        /// Re-interprets the specified object view to an untyped value view.
+        /// </summary>
+        /// <param name="view">The object view to re-interpret.</param>
+        /// <returns>The untyped value view for the given object.</returns>
         public static implicit operator SerializedValueView(SerializedObjectView view) => new SerializedValueView(view.m_Stream, view.m_Handle);
     }
 }

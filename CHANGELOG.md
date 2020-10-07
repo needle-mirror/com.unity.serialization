@@ -4,6 +4,19 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2020-10-07
+### Changed
+* Updated minimum Unity version to `2020.1`.
+* Update `com.unity.burst` to version `1.3.5`.
+* Update `com.unity.collections` to version `0.12.0-preview.13`.
+* Update `com.unity.jobs` to version `0.5.0-preview.14`.
+* Update `com.unity.properties` to version `1.6.0-preview`.
+* Update `com.unity.test-framework.performance` to version `2.3.1-preview`.
+
+### Added
+* Added low level `JsonWriter` class which can be used as a forward only JSON writer.
+* Added binary serialization support for `System.Guid`, `System.DateTime`, `System.TimeSpan`, `System.Version`, `System.IO.FileInfo`, `System.IO.DirectoryInfo`, `UnityEditor.GUID`, `UnityEditor.GlobalObjectId`.
+
 ## [1.5.0] - 2020-08-21
 ### Added
 * Added unsafe constructor overload to `SerializedObjectReader` that takes `char*` and length.

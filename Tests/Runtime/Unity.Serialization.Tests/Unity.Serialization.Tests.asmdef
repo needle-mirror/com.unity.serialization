@@ -1,6 +1,8 @@
 {
     "name": "Unity.Serialization.Tests",
     "references": [
+        "Unity.Jobs",
+        "Unity.Burst",
         "Unity.Serialization",
         "Unity.Collections",
         "Unity.Properties"
@@ -11,7 +13,11 @@
     "excludePlatforms": [],
     "allowUnsafeCode": true,
     "overrideReferences": false,
-    "precompiledReferences": [],
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
     "autoReferenced": false,
-    "defineConstraints": []
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ]
 }
