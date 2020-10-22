@@ -282,7 +282,7 @@ namespace Unity.Serialization.Json
             public void WriteValue(int value)
             {
                 FixedString128 f = default;
-                f.Format(value);
+                f.Append(value);
                 WriteValue(f);
             }
 
@@ -293,7 +293,7 @@ namespace Unity.Serialization.Json
             public void WriteValue(long value)
             {
                 FixedString128 f = default;
-                f.Format(value);
+                f.Append(value);
                 WriteValue(f);
             }
 
@@ -312,7 +312,7 @@ namespace Unity.Serialization.Json
                 }
                 
                 FixedString128 f = default;
-                f.Format(value);
+                f.Append(value);
                 WriteValue(f);
             }
             

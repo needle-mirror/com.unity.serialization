@@ -67,7 +67,7 @@ namespace Unity.Serialization.Json
         public void Write(int value)
         {
             FixedString128 f = default;
-            f.Format(value);
+            f.Append(value);
             Write(f);
         }
 
@@ -78,7 +78,7 @@ namespace Unity.Serialization.Json
         public void Write(uint value)
         {
             FixedString128 f = default;
-            f.Format(value);
+            f.Append(value);
             Write(f);
         }
 
@@ -89,7 +89,7 @@ namespace Unity.Serialization.Json
         public void Write(long value)
         {
             FixedString128 f = default;
-            f.Format(value);
+            f.Append(value);
             Write(f);
         }
 
@@ -100,7 +100,7 @@ namespace Unity.Serialization.Json
         public void Write(ulong value)
         {
             FixedString128 f = default;
-            f.Format(value);
+            f.Append(value);
             Write(f);
         }
 
@@ -111,7 +111,7 @@ namespace Unity.Serialization.Json
         public void Write(float value)
         {
             FixedString128 f = default;
-            f.Format(value);
+            f.Append(value);
             Write(f);
         }
 
@@ -122,7 +122,7 @@ namespace Unity.Serialization.Json
         public void Write(double value)
         {
             FixedString128 f = default;
-            f.Format((float)value);
+            f.Append((float)value);
             Write(f);
         }
 
