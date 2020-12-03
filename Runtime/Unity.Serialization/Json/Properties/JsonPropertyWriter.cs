@@ -508,7 +508,7 @@ namespace Unity.Serialization.Json
                     writer.WriteValue((double) value);
                     return;
                 case TypeCode.Boolean:
-                    writer.WriteValue(((bool) value) ? "true" : "false");
+                    writer.WriteValueLiteral(((bool) value) ? "true" : "false");
                     return;
                 case TypeCode.Char:
                     writer.WriteValue((char) value);

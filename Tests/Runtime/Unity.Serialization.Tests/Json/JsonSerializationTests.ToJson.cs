@@ -32,6 +32,12 @@ namespace Unity.Serialization.Json.Tests
             public int B;
         }
 
+        [GeneratePropertyBag]
+        class ClassWithObjectField
+        {
+            public object Value;
+        }
+
         [Test]
         public void ToJson_Null_ReturnsAStringThatSaysNull()
         {
@@ -84,6 +90,14 @@ namespace Unity.Serialization.Json.Tests
                 new TestConcreteB { B = 6 }
             });
             Assert.That(UnFormat(json), Is.EqualTo(@"[{""$type"":""Unity.Serialization.Json.Tests.JsonSerializationTests+TestConcreteA, Unity.Serialization.Tests"",""A"":5},{""$type"":""Unity.Serialization.Json.Tests.JsonSerializationTests+TestConcreteB, Unity.Serialization.Tests"",""B"":6}]"));
+        }
+
+        [Test]
+        public void ToJson_ObjectWithBoolValue_ReturnsValidJsonString()
+        {
+            var json = JsonSerialization.ToJson(new ClassWithObjectField { Value = true });
+            Debug.Log(UnFormat(json));
+            Assert.That(UnFormat(json), Is.EqualTo(@"{""Value"":true}"));
         }
     }
 }
