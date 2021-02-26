@@ -158,5 +158,43 @@ namespace Unity.Serialization.Json.Tests
                 }
             }
         }
+
+        [Test]
+        public void FromJson_ToIntList_WhenInputIsInvalid()
+        {
+            Assert.Throws<InvalidJsonException>(() =>
+            {
+                JsonSerialization.FromJson<List<int>>("[");
+            });
+            
+            Assert.Throws<InvalidJsonException>(() =>
+            {
+                JsonSerialization.FromJson<Dictionary<string, int>>("{");
+            });
+        }
+        
+        [Test]
+        public void FromJson_StreamWithExactBlockSize()
+        {
+            const string kJson = "{\"a\":12345678,\"b\":[";
+            
+            using (var stream = new MemoryStream(UTF8Encoding.Default.GetBytes(kJson)))
+            {
+                var configuration = SerializedObjectReaderConfiguration.Default;
+
+                configuration.UseReadAsync = false;
+                configuration.ValidationType = JsonValidationType.Standard;
+                configuration.BlockBufferSize = (int) stream.Length * 2;
+                configuration.OutputBufferSize = (int) stream.Length * 2;
+                
+                using (var reader = new SerializedObjectReader(stream, configuration))
+                {
+                    Assert.Throws<InvalidJsonException>(() =>
+                    {
+                        reader.ReadObject();
+                    });
+                }
+            }
+        }
     }
 }

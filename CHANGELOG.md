@@ -4,6 +4,14 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2021-02-26
+### Changed
+* Updated `com.unity.properties` to version `1.7.0-preview`.
+
+### Fixed
+* Fixed an issue where `BinarySerialization` was keeping serialized references until the next `ToBinary` call.
+* Fixed an issue where `JsonSerialization` validation was not detecting open scopes at the end of a stream.
+
 ## [1.6.2] - 2020-12-03
 ### Fixed
 * Fixed a regression causing `object` fields with bool values to be serialized as a quoted string.

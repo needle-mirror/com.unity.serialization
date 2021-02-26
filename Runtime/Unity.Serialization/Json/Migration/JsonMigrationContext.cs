@@ -143,7 +143,8 @@ namespace Unity.Serialization.Json.Adapters
             {
                 case TokenType.String:
                 {
-                    TypeConversion.TryConvert(view.AsStringView().ToString(), out value);
+                    var v = view.AsStringView().ToString();
+                    TypeConversion.TryConvert(ref v, out value);
                     break;
                 }
                 case TokenType.Primitive:
@@ -154,20 +155,24 @@ namespace Unity.Serialization.Json.Adapters
                     {
                         if (p.IsSigned())
                         {
-                            TypeConversion.TryConvert(p.AsInt64(), out value);
+                            var v = p.AsInt64();
+                            TypeConversion.TryConvert(ref v, out value);
                         }
                         else
                         {
-                            TypeConversion.TryConvert(p.AsUInt64(), out value);
+                            var v = p.AsUInt64();
+                            TypeConversion.TryConvert(ref v, out value);
                         }
                     }
                     else if (p.IsDecimal() || p.IsInfinity() || p.IsNaN())
                     {
-                        TypeConversion.TryConvert(p.AsFloat(), out value);
+                        var v = p.AsFloat();
+                        TypeConversion.TryConvert(ref v, out value);
                     }
                     else if (p.IsBoolean())
                     {
-                        TypeConversion.TryConvert(p.AsBoolean(), out value);
+                        var v = p.AsBoolean();
+                        TypeConversion.TryConvert(ref v, out value);
                     }
                     else if (p.IsNull())
                     {

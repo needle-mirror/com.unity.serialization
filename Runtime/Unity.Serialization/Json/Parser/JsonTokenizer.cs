@@ -776,8 +776,9 @@ namespace Unity.Serialization.Json
         /// <param name="buffer">A character array containing the input json data to tokenize.</param>
         /// <param name="start">The index of ptr at which to begin reading.</param>
         /// <param name="count">The maximum number of characters to read.</param>
+        /// <param name="isFinalBlock">A value indicating if this is the final block of characters from a stream. This will trigger an error for any unclosed scopes.</param>
         /// <returns>The number of characters that have been read.</returns>
-        public int Write(UnsafeBuffer<char> buffer, int start, int count)
+        public int Write(UnsafeBuffer<char> buffer, int start, int count, bool isFinalBlock = false)
         {
             if (start + count > buffer.Length)
             {
@@ -831,15 +832,6 @@ namespace Unity.Serialization.Json
                         break;
                 }
                 
-                if (!result.IsValid() && result.ActualType != JsonType.EOF)
-                {
-                    throw new InvalidJsonException(result.ToString())
-                    {
-                        Line = result.LineCount,
-                        Character = result.CharCount
-                    };
-                }
-                
                 position = output.BufferPosition;
 
                 m_Data->JsonTokens = output.Tokens;
@@ -847,6 +839,28 @@ namespace Unity.Serialization.Json
                 m_Data->TokenParentIndex = output.TokenParentIndex;
                 m_Data->PrevChar = output.PrevChar;
                 m_Data->CommentType = output.CommentType;
+                
+                if (!result.IsValid())
+                {
+                    // The JSON is considered invalid at this point. However we have a few special cases to consider.
+                    if (result.ActualType == JsonType.EOF && !isFinalBlock)
+                    {
+                        // The last received token was an end of stream token but we are still waiting on more characters.
+                        // We can safely ignore this error for now.
+                    }
+                    else if (TokenNextIndex == 1 && Tokens[0].Type == TokenType.Primitive)
+                    {
+                        // This is a single primitive value. We can deserialize safely and accept this as valid.
+                    }
+                    else
+                    {
+                        throw new InvalidJsonException(result.ToString())
+                        {
+                            Line = result.LineCount,
+                            Character = result.CharCount
+                        };
+                    }
+                }
 
                 if (output.TokensLength != m_Data->BufferSize)
                 {

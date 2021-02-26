@@ -702,7 +702,7 @@ namespace Unity.Serialization.Json
                 Break(JsonType.EOF);
             }
 
-             int ReadString()
+            int ReadString()
             {
                 m_PrevChar = '\0';
 
@@ -743,6 +743,13 @@ namespace Unity.Serialization.Json
                                         m_Expected = JsonType.Undefined;
                                         break;
                                 }
+                            }
+                                break;
+
+                            case JsonType.Undefined:
+                            {
+                                // Special case of reading a string at the root. The assumption is this is a single string value and can not be followed by anything.
+                                m_Expected = JsonType.EOF;
                             }
                                 break;
                         }

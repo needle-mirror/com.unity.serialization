@@ -419,5 +419,32 @@ color = { r = 1 g = 1 b = 1 a = 1 }
                 Assert.That(members[0].Value().ToString(), Is.EqualTo(expectedString));
             }
         }
+
+        [Test]
+        public void SerializedObjectReader_Read_JsonWithStringRoot()
+        {
+            SetJson("\"TestString\"");
+
+            using (var reader = new SerializedObjectReader(m_Stream))
+            {
+                reader.Read(out var view);
+                var str = view.ToString();
+                Assert.That(str, Is.EqualTo("TestString"));
+            }
+        }
+        
+        [Test]
+        public void SerializedObjectReader_Read_InvalidJsonWithStringPrimitiveRoot()
+        {
+            SetJson("\"TestString\"10");
+
+            using (var reader = new SerializedObjectReader(m_Stream))
+            {
+                Assert.Throws<InvalidJsonException>(() =>
+                {
+                    reader.Read(out var view);
+                });
+            }
+        }
     }
 }

@@ -9,6 +9,12 @@ using System.Text;
 
 namespace Unity.Serialization.Json
 {    
+    struct BlockInfo
+    {
+        public UnsafeBuffer<char> Block;
+        public bool IsFinal;
+    }
+    
     interface IUnsafeStreamBlockReader : IDisposable
     {
         /// <summary>
@@ -19,7 +25,7 @@ namespace Unity.Serialization.Json
         /// <summary>
         /// Returns the next block in the stream.
         /// </summary>
-        UnsafeBuffer<char> GetNextBlock();
+        BlockInfo GetNextBlock();
     }
     
     /// <summary>
@@ -85,7 +91,8 @@ namespace Unity.Serialization.Json
         readonly PackedBinaryStream m_BinaryStream;
         readonly PackedBinaryWriter m_BinaryWriter;
 
-        UnsafeBuffer<char> m_Block;
+        UnsafeBuffer<char> m_InitialBlock;
+        UnsafeBuffer<char> m_CurrentBlock;
         
         static PackedBinaryStream OpenBinaryStreamWithConfiguration(SerializedObjectReaderConfiguration configuration, Allocator label)
         {
@@ -232,7 +239,8 @@ namespace Unity.Serialization.Json
             m_Parser = new NodeParser(m_Tokenizer, configuration.NodeBufferSize, label);
             m_BinaryStream = output;
             m_BinaryWriter = new PackedBinaryWriter(m_BinaryStream, m_Tokenizer, label);
-            m_Block = default;
+            m_InitialBlock = default;
+            m_CurrentBlock = default;
         }
 #endif
 
@@ -289,7 +297,8 @@ namespace Unity.Serialization.Json
             m_Parser = new NodeParser(m_Tokenizer, configuration.NodeBufferSize, label);
             m_BinaryStream = output;
             m_BinaryWriter = new PackedBinaryWriter(m_BinaryStream, m_Tokenizer, label);
-            m_Block = buffer;
+            m_InitialBlock = buffer;
+            m_CurrentBlock = default;
         }
 
         /// <summary>
@@ -533,7 +542,7 @@ namespace Unity.Serialization.Json
 
                 Write(m_Parser.TokenNextIndex - m_BinaryWriter.TokenNextIndex);
 
-                if (m_Parser.NodeType == NodeType.None && !IsEmpty(m_Block))
+                if (m_Parser.NodeType == NodeType.None && !IsEmpty(m_CurrentBlock))
                 {
                     continue;
                 }
@@ -570,7 +579,7 @@ namespace Unity.Serialization.Json
 
                 index += batchCount;
 
-                if (m_Parser.NodeType == NodeType.None && !IsEmpty(m_Block))
+                if (m_Parser.NodeType == NodeType.None && !IsEmpty(m_CurrentBlock))
                 {
                     continue;
                 }
@@ -582,7 +591,7 @@ namespace Unity.Serialization.Json
         void Write(int count)
         {
             if (count <= 0) return;
-            m_BinaryWriter.Write(m_Block, count);
+            m_BinaryWriter.Write(m_CurrentBlock, count);
         }
 
         unsafe bool FillBuffers()
@@ -592,15 +601,28 @@ namespace Unity.Serialization.Json
                 return false;
             }
 
+            bool isFinalBlock;
+            
             if (null != m_StreamBlockReader)
             {
-                m_Block = m_StreamBlockReader.GetNextBlock();
-
-                if (IsEmpty(m_Block))
-                {
-                    m_Block = default;
-                    return false;
-                }
+                var info = m_StreamBlockReader.GetNextBlock();
+                m_CurrentBlock = info.Block;
+                isFinalBlock = info.IsFinal;
+            }
+            else
+            {
+                m_CurrentBlock = m_InitialBlock;
+                m_InitialBlock = default;
+                isFinalBlock = true;
+            }
+                
+            if (IsEmpty(m_CurrentBlock))
+            {
+                m_CurrentBlock = default;
+                
+                // We need to perform off one final write call to trigger validation.
+                m_Tokenizer.Write(m_CurrentBlock, 0, 0, true);
+                return false;
             }
             
             m_Tokenizer.DiscardCompleted();
@@ -609,7 +631,7 @@ namespace Unity.Serialization.Json
                                     ? m_Tokenizer.DiscardRemap[m_BinaryWriter.TokenParentIndex]
                                     : -1);
 
-            m_Tokenizer.Write(m_Block, 0, m_Block.Length);
+            m_Tokenizer.Write(m_CurrentBlock, 0, m_CurrentBlock.Length, isFinalBlock);
             return true;
         }
 

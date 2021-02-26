@@ -1,5 +1,4 @@
 #if !NET_DOTS
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -52,7 +51,7 @@ namespace Unity.Serialization.Json
             Reader.DiscardBufferedData();
         }
 
-        public abstract UnsafeBuffer<char> GetNextBlock();
+        public abstract BlockInfo GetNextBlock();
     }
 
     /// <summary>
@@ -82,7 +81,7 @@ namespace Unity.Serialization.Json
             m_ReadBlockTask = default;
         }
         
-        public override UnsafeBuffer<char> GetNextBlock()
+        public override BlockInfo GetNextBlock()
         {
             var buffer = m_Buffers[m_NextBufferIndex++];
             var chars = buffer.GetManagedArray();
@@ -121,8 +120,12 @@ namespace Unity.Serialization.Json
                 m_ReadBlockTask?.Dispose();
                 m_ReadBlockTask = null;
             }
-            
-            return new UnsafeBuffer<char>(buffer.GetUnsafePtr(), count);
+
+            return new BlockInfo
+            {
+                Block = new UnsafeBuffer<char>(buffer.GetUnsafePtr(), count),
+                IsFinal = count != chars.Length
+            };
         }
         
         public override void Reset()
@@ -162,10 +165,15 @@ namespace Unity.Serialization.Json
             m_Buffer = new ManagedCharBuffer(charBufferSize);
         }
 
-        public override UnsafeBuffer<char> GetNextBlock()
+        public override BlockInfo GetNextBlock()
         {
             var count = Reader.ReadBlock(m_Buffer.GetManagedArray(), 0, m_Buffer.GetManagedArray().Length);
-            return new UnsafeBuffer<char>(m_Buffer.GetUnsafePtr(), count);
+            
+            return new BlockInfo
+            {
+                Block = new UnsafeBuffer<char>(m_Buffer.GetUnsafePtr(), count),
+                IsFinal = count != m_Buffer.GetManagedArray().Length
+            };
         }
         
         public override void Dispose()
