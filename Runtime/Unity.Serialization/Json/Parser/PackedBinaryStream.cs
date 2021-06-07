@@ -77,6 +77,9 @@ namespace Unity.Serialization.Json
         
         internal int GetFirstChildIndex(int start)
         {
+            if (m_Tokens[start].Length <= 1)
+                return start + 1;
+            
             for (var index = start + 1;; index++)
             {
                 var token = m_Tokens[index];
