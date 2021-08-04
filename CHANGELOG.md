@@ -4,6 +4,17 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.7.3] - 2021-08-04
+### Fixed
+* Fix exception thrown when trying to serialize or deserialize nullable struct types.
+
+### Changed
+* Updated `com.unity.properties` to version `1.7.1-preview`.
+
+## [1.7.2] - 2021-07-19
+### Fixed
+* Fix crash when re-allocating internal buffers in `JsonTokenizer`.
+
 ## [1.7.1] - 2021-06-07
 ### Fixed
 * Fix exception thrown in `UnsafePackedBinaryStream.GetFirstChildIndex` when deserializing large json files.

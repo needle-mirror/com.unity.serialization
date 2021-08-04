@@ -60,5 +60,26 @@ namespace Unity.Serialization.Tests
             Assert.That(dst, Is.Not.SameAs(src));
             Assert.That(dst.NullableEnumUInt8, Is.EqualTo(src.NullableEnumUInt8));
         }
+        
+        [Test]
+        public void NullableStruct_WhenValueIsNull_CanBeSerializedAndDeserialized()
+        {
+            StructWithPrimitives? src = null;
+            var dst = SerializeAndDeserialize(src);
+            Assert.That(dst, Is.Null);
+        }
+
+        [Test]
+        public void NullableStruct_WhenValueIsNotNull_CanBeSerializedAndDeserialized()
+        {
+            StructWithPrimitives? src = new StructWithPrimitives
+            {
+                Int32Value = 38
+            };
+
+            var dst = SerializeAndDeserialize(src);
+            Assert.That(dst, Is.Not.Null);
+            Assert.That(dst.Value.Int32Value, Is.EqualTo(src.Value.Int32Value));
+        }
     }
 }

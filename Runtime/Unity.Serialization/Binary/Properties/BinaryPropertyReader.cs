@@ -195,7 +195,38 @@ namespace Unity.Serialization.Binary
             
             if (RuntimeTypeInfoCache<TValue>.IsNullable)
             {
-                BinarySerialization.ReadPrimitiveBoxed(m_Stream, ref value, Nullable.GetUnderlyingType(typeof(TValue)));
+                var underlyingType = Nullable.GetUnderlyingType(typeof(TValue));
+
+                if (RuntimeTypeInfoCache.IsContainerType(underlyingType))
+                {
+                    m_SerializedTypeProviderSerializedType = underlyingType;
+                    DefaultTypeConstruction.Construct(ref value, this);
+
+                    var underlyingValue = Convert.ChangeType(value, underlyingType);
+
+                    if (!PropertyContainer.Visit(ref underlyingValue, this, out var errorCode))
+                    {
+                        switch (errorCode)
+                        {
+                            case VisitErrorCode.NullContainer:
+                                throw new ArgumentNullException(nameof(value));
+                            case VisitErrorCode.InvalidContainerType:
+                                throw new InvalidContainerTypeException(value.GetType());
+                            case VisitErrorCode.MissingPropertyBag:
+                                throw new MissingPropertyBagException(value.GetType());
+                            default:
+                                throw new Exception($"Unexpected {nameof(VisitErrorCode)}=[{errorCode}]");
+                        }
+                    }
+
+                    // Repack the T as Nullable<T>
+                    value = (TValue) underlyingValue;
+                }
+                else
+                {
+                    BinarySerialization.ReadPrimitiveBoxed(m_Stream, ref value, Nullable.GetUnderlyingType(typeof(TValue)));
+                }
+
                 return;
             }
 
@@ -246,21 +277,22 @@ namespace Unity.Serialization.Binary
             if (RuntimeTypeInfoCache<TValue>.IsObjectType && !RuntimeTypeInfoCache.IsContainerType(value.GetType()))
             {
                 BinarySerialization.ReadPrimitiveBoxed(m_Stream, ref value, value.GetType());
-                return;
             }
-            
-            if (!PropertyContainer.Visit(ref value, this, out var errorCode))
+            else
             {
-                switch (errorCode)
+                if (!PropertyContainer.Visit(ref value, this, out var errorCode))
                 {
-                    case VisitErrorCode.NullContainer:
-                        throw new ArgumentNullException(nameof(value));
-                    case VisitErrorCode.InvalidContainerType:
-                        throw new InvalidContainerTypeException(value.GetType());
-                    case VisitErrorCode.MissingPropertyBag:
-                        throw new MissingPropertyBagException(value.GetType());
-                    default:
-                        throw new Exception($"Unexpected {nameof(VisitErrorCode)}=[{errorCode}]");
+                    switch (errorCode)
+                    {
+                        case VisitErrorCode.NullContainer:
+                            throw new ArgumentNullException(nameof(value));
+                        case VisitErrorCode.InvalidContainerType:
+                            throw new InvalidContainerTypeException(value.GetType());
+                        case VisitErrorCode.MissingPropertyBag:
+                            throw new MissingPropertyBagException(value.GetType());
+                        default:
+                            throw new Exception($"Unexpected {nameof(VisitErrorCode)}=[{errorCode}]");
+                    }
                 }
             }
         }

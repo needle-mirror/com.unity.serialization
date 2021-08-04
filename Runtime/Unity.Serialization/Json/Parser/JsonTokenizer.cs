@@ -117,8 +117,6 @@ namespace Unity.Serialization.Json
             public int TokenParentIndex;
             public CommentType CommentType;
             
-            public Allocator Label;
-
             void Break(int result)
             {
                 Output->Tokens = Tokens;
@@ -131,20 +129,8 @@ namespace Unity.Serialization.Json
                 Output->CommentType = CommentType;
             }
 
-            void GrowTokenBuffer()
-            {
-                var newLength = TokensLength * 2;
-                Tokens = NativeArrayUtility.Resize(Tokens, TokensLength, newLength, 4, Label);
-                TokensLength = newLength;
-            }
-
             public void Execute()
             {
-                if (TokensNextIndex >= TokensLength)
-                {
-                    GrowTokenBuffer();
-                }
-
                 // Handle re-entry with a open token on the `stack`
                 if (TokensNextIndex - 1 >= 0 && Tokens[TokensNextIndex - 1].End == -1)
                 {
@@ -207,7 +193,8 @@ namespace Unity.Serialization.Json
                         {
                             if (TokensNextIndex >= TokensLength)
                             {
-                                GrowTokenBuffer();
+                                Break(k_ResultTokenBufferOverflow);
+                                return;
                             }
 
                             Tokens[TokensNextIndex++] = new Token
@@ -287,7 +274,7 @@ namespace Unity.Serialization.Json
                                 
                             var result = ParseComment(TokenParentIndex, CharBufferPosition + 1);
                             
-                            if (result == k_ResultInvalidInput)
+                            if (result == k_ResultInvalidInput || result == k_ResultTokenBufferOverflow)
                             {
                                 Break(result);
                                 return;
@@ -319,7 +306,7 @@ namespace Unity.Serialization.Json
                                 
                                 result = ParseString(TokenParentIndex, CharBufferPosition);
                                 
-                                if (result == k_ResultInvalidInput)
+                                if (result == k_ResultInvalidInput || result == k_ResultTokenBufferOverflow)
                                 {
                                     Break(result);
                                     return;
@@ -331,7 +318,7 @@ namespace Unity.Serialization.Json
 
                                 result = ParsePrimitive(TokenParentIndex, start);
 
-                                if (result == k_ResultInvalidInput)
+                                if (result == k_ResultInvalidInput || result == k_ResultTokenBufferOverflow)
                                 {
                                     Break(result);
                                     return;
@@ -372,7 +359,7 @@ namespace Unity.Serialization.Json
                     {
                         if (TokensNextIndex >= TokensLength)
                         {
-                            GrowTokenBuffer();
+                            return k_ResultTokenBufferOverflow;
                         }
 
                         Tokens[TokensNextIndex++] = new Token
@@ -393,7 +380,7 @@ namespace Unity.Serialization.Json
                 {
                     if (TokensNextIndex >= TokensLength)
                     {
-                        GrowTokenBuffer();
+                        return k_ResultTokenBufferOverflow;
                     }
 
                     Tokens[TokensNextIndex++] = new Token
@@ -429,7 +416,7 @@ namespace Unity.Serialization.Json
                     {
                         if (TokensNextIndex >= TokensLength)
                         {
-                            GrowTokenBuffer();
+                            return k_ResultTokenBufferOverflow;
                         }
 
                         Tokens[TokensNextIndex++] = new Token
@@ -454,7 +441,7 @@ namespace Unity.Serialization.Json
                 {
                     if (TokensNextIndex >= TokensLength)
                     {
-                        GrowTokenBuffer();
+                        return k_ResultTokenBufferOverflow;
                     }
 
                     Tokens[TokensNextIndex++] = new Token
@@ -503,7 +490,7 @@ namespace Unity.Serialization.Json
                                 {
                                     if (TokensNextIndex >= TokensLength)
                                     {
-                                        GrowTokenBuffer();
+                                        return k_ResultTokenBufferOverflow;
                                     }
 
                                     Tokens[TokensNextIndex++] = new Token
@@ -526,7 +513,7 @@ namespace Unity.Serialization.Json
                             {
                                 if (TokensNextIndex >= TokensLength)
                                 {
-                                    GrowTokenBuffer();
+                                    return k_ResultTokenBufferOverflow;
                                 }
 
                                 Tokens[TokensNextIndex++] = new Token
@@ -550,7 +537,7 @@ namespace Unity.Serialization.Json
                 {
                     if (TokensNextIndex >= TokensLength)
                     {
-                        GrowTokenBuffer();
+                        return k_ResultTokenBufferOverflow;
                     }
 
                     Tokens[TokensNextIndex++] = new Token
@@ -768,6 +755,13 @@ namespace Unity.Serialization.Json
                     break;
             }
         }
+        
+        void GrowTokenBuffer()
+        {
+            var newLength = m_Data->BufferSize * 2;
+            m_Data->JsonTokens = NativeArrayUtility.Resize(m_Data->JsonTokens, m_Data->BufferSize, newLength, 4, m_Label);
+            m_Data->BufferSize = newLength;
+        }
 
         /// <inheritdoc />
         /// <summary>
@@ -789,46 +783,45 @@ namespace Unity.Serialization.Json
             
             for (;;)
             {
+                if (m_Data->TokenNextIndex >= m_Data->BufferSize)
+                    GrowTokenBuffer();
+
                 var output = new TokenizeJobOutput();
 
-                var handle = new TokenizeJob
+                for (;;)
                 {
-                    Output = &output,
-                    CharBuffer = (ushort*) buffer.Buffer,
-                    CharBufferLength = start + count,
-                    CharBufferPosition = position,
-                    PrevChar = m_Data->PrevChar,
-                    CommentType = m_Data->CommentType,
-                    Tokens = m_Data->JsonTokens,
-                    TokensLength = m_Data->BufferSize,
-                    TokensNextIndex = m_Data->TokenNextIndex,
-                    TokenParentIndex = m_Data->TokenParentIndex,
-                    Label = m_Label
-                }.Schedule();
+                    // Unfortunately we can not re-allocate buffers inside of a C# job (unrelated to burst).
+                    // As a workaround the job will yield back to the main thread and wait for re-allocation.
+                    // This also means we can not parallelize with the validation job below.
+                    new TokenizeJob
+                    {
+                        Output = &output,
+                        CharBuffer = (ushort*) buffer.Buffer,
+                        CharBufferLength = start + count,
+                        CharBufferPosition = position,
+                        PrevChar = m_Data->PrevChar,
+                        CommentType = m_Data->CommentType,
+                        Tokens = m_Data->JsonTokens,
+                        TokensLength = m_Data->BufferSize,
+                        TokensNextIndex = m_Data->TokenNextIndex,
+                        TokenParentIndex = m_Data->TokenParentIndex
+                    }.Run();
 
-                var validation = default(JobHandle);
+                    if (output.Result == k_ResultTokenBufferOverflow)
+                    {
+                        GrowTokenBuffer();
+                        continue;
+                    }
 
-                switch (m_Data->ValidationType)
-                {
-                    case JsonValidationType.Standard: 
-                        validation = m_Data->StandardValidator.ScheduleValidation(buffer, position, count);
-                        break;
-                    case JsonValidationType.Simple: 
-                        validation = m_Data->SimpleValidator.ScheduleValidation(buffer, position, count);
-                        break;
+                    break;
                 }
                 
-                JobHandle.CombineDependencies(handle, validation).Complete();
-
                 var result = default(JsonValidationResult);
                 
                 switch (m_Data->ValidationType)
                 {
                     case JsonValidationType.Standard: 
-                        result = m_Data->StandardValidator.GetResult();
-                        break;
-                    case JsonValidationType.Simple: 
-                        result = m_Data->SimpleValidator.GetResult();
+                        result = m_Data->StandardValidator.Validate(buffer, position, count);
                         break;
                 }
                 

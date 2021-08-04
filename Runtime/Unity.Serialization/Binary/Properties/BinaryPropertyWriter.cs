@@ -129,7 +129,34 @@ namespace Unity.Serialization.Binary
             if (RuntimeTypeInfoCache<TValue>.IsNullable)
             {
                 m_Stream->Add(k_TokenNone);
-                BinarySerialization.WritePrimitiveBoxed(m_Stream, value, Nullable.GetUnderlyingType(typeof(TValue)));
+                var underlyingType = Nullable.GetUnderlyingType(typeof(TValue));
+
+                if (RuntimeTypeInfoCache.IsContainerType(underlyingType))
+                {
+                    // IMPORTANT: Do NOT add a token to the stream since we are triggering a re-entrance on the same object here.
+                    // Unpack Nullable<T> as T
+                    var underlyingValue = Convert.ChangeType(value, underlyingType);
+
+                    if (!PropertyContainer.Visit(ref underlyingValue, this, out var errorCode))
+                    {
+                        switch (errorCode)
+                        {
+                            case VisitErrorCode.NullContainer:
+                                throw new ArgumentNullException(nameof(value));
+                            case VisitErrorCode.InvalidContainerType:
+                                throw new InvalidContainerTypeException(value.GetType());
+                            case VisitErrorCode.MissingPropertyBag:
+                                throw new MissingPropertyBagException(value.GetType());
+                            default:
+                                throw new Exception($"Unexpected {nameof(VisitErrorCode)}=[{errorCode}]");
+                        }
+                    }
+                }
+                else
+                {
+                    BinarySerialization.WritePrimitiveBoxed(m_Stream, value, underlyingType);
+                }
+
                 return;
             }
             
@@ -179,21 +206,22 @@ namespace Unity.Serialization.Binary
             if (RuntimeTypeInfoCache<TValue>.IsObjectType && !RuntimeTypeInfoCache.IsContainerType(value.GetType()))
             {
                 BinarySerialization.WritePrimitiveBoxed(m_Stream, value, value.GetType());
-                return;
             }
-            
-            if (!PropertyContainer.Visit(ref value, this, out var errorCode))
+            else
             {
-                switch (errorCode)
+                if (!PropertyContainer.Visit(ref value, this, out var errorCode))
                 {
-                    case VisitErrorCode.NullContainer:
-                        throw new ArgumentNullException(nameof(value));
-                    case VisitErrorCode.InvalidContainerType:
-                        throw new InvalidContainerTypeException(value.GetType());
-                    case VisitErrorCode.MissingPropertyBag:
-                        throw new MissingPropertyBagException(value.GetType());
-                    default:
-                        throw new Exception($"Unexpected {nameof(VisitErrorCode)}=[{errorCode}]");
+                    switch (errorCode)
+                    {
+                        case VisitErrorCode.NullContainer:
+                            throw new ArgumentNullException(nameof(value));
+                        case VisitErrorCode.InvalidContainerType:
+                            throw new InvalidContainerTypeException(value.GetType());
+                        case VisitErrorCode.MissingPropertyBag:
+                            throw new MissingPropertyBagException(value.GetType());
+                        default:
+                            throw new Exception($"Unexpected {nameof(VisitErrorCode)}=[{errorCode}]");
+                    }
                 }
             }
         }

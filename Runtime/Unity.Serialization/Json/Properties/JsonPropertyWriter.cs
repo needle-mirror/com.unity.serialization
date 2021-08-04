@@ -187,8 +187,13 @@ namespace Unity.Serialization.Json
             // This is a very common case. At serialize time we are serializing something that is polymorphic or an object
             // However at deserialize time the user will provide the System.Type, we can avoid writing out the fully qualified type name in this case.
             var isRootAndTypeWasGiven = Property is IPropertyWrapper && null != m_RootType;
-
-            metadata.HasSerializedType = Property.DeclaredValueType() != type && !isRootAndTypeWasGiven;
+            var declaredValueType = Property.DeclaredValueType();
+            
+            // We need to write out the serialize type name in any of the following cases are FALSE:
+            // 1) The type is the same as the declared property type. This means deserialization can infer the property type.
+            // 2) The root type was explicitly provided. This means the user is expected to provide a type upon deserialization.
+            // 3) This is a nullable type. This means deserialization can infer the underlying property type.
+            metadata.HasSerializedType = type != declaredValueType && !isRootAndTypeWasGiven && Nullable.GetUnderlyingType(declaredValueType) != type;
             metadata.HasSerializedVersion = m_Migrations.TryGetSerializedVersion<TContainer>(out var serializedVersion);
             metadata.SerializedVersion = serializedVersion;
 
@@ -431,7 +436,32 @@ namespace Unity.Serialization.Json
             
             if (RuntimeTypeInfoCache<TValue>.IsNullable)
             {
-                WritePrimitiveBoxed(m_Writer, value, Nullable.GetUnderlyingType(typeof(TValue)));
+                var underlyingType = Nullable.GetUnderlyingType(typeof(TValue));
+
+                if (RuntimeTypeInfoCache.IsContainerType(underlyingType))
+                {
+                    var underlyingValue = System.Convert.ChangeType(value, underlyingType);
+                    
+                    if (!PropertyContainer.Visit(ref underlyingValue, this, out var errorCode))
+                    {
+                        switch (errorCode)
+                        {
+                            case VisitErrorCode.NullContainer:
+                                throw new ArgumentNullException(nameof(value));
+                            case VisitErrorCode.InvalidContainerType:
+                                throw new InvalidContainerTypeException(value.GetType());
+                            case VisitErrorCode.MissingPropertyBag:
+                                throw new MissingPropertyBagException(value.GetType());
+                            default:
+                                throw new Exception($"Unexpected {nameof(VisitErrorCode)}=[{errorCode}]");
+                        }
+                    }
+                }
+                else
+                {
+                    WritePrimitiveBoxed(m_Writer, value, underlyingType);
+                }
+                
                 return;
             }
             

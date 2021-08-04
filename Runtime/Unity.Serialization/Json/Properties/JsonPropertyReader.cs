@@ -555,6 +555,9 @@ namespace Unity.Serialization.Json
 
                     m_SerializedTypeProvider.View = view;
                     m_SerializedTypeProvider.SerializedType = isRoot ? m_SerializedType : null;
+                    
+                    if (RuntimeTypeInfoCache<TValue>.IsNullable)
+                        m_SerializedTypeProvider.SerializedType = Nullable.GetUnderlyingType(typeof(TValue));
 
                     if (metadata.IsSerializedReference)
                     {
@@ -587,18 +590,45 @@ namespace Unity.Serialization.Json
                     using (new SerializedContainerMetadataScope(this, metadata))
                     using (new UnsafeViewScope(this, view))
                     {
-                        if (!PropertyContainer.Visit(ref value, this, out var errorCode))
+                        if (RuntimeTypeInfoCache<TValue>.IsNullable)
                         {
-                            switch (errorCode)
+                            // Unpack Nullable<T> as T
+                            var underlyingType = Nullable.GetUnderlyingType(typeof(TValue));
+                            var underlyingValue = System.Convert.ChangeType(value, underlyingType);
+                            
+                            if (!PropertyContainer.Visit(ref underlyingValue, this, out var errorCode))
                             {
-                                case VisitErrorCode.NullContainer:
-                                    throw new ArgumentNullException(nameof(value));
-                                case VisitErrorCode.InvalidContainerType:
-                                    throw new InvalidContainerTypeException(value.GetType());
-                                case VisitErrorCode.MissingPropertyBag:
-                                    throw new MissingPropertyBagException(value.GetType());
-                                default:
-                                    throw new Exception($"Unexpected {nameof(VisitErrorCode)}=[{errorCode}]");
+                                switch (errorCode)
+                                {
+                                    case VisitErrorCode.NullContainer:
+                                        throw new ArgumentNullException(nameof(value));
+                                    case VisitErrorCode.InvalidContainerType:
+                                        throw new InvalidContainerTypeException(value.GetType());
+                                    case VisitErrorCode.MissingPropertyBag:
+                                        throw new MissingPropertyBagException(value.GetType());
+                                    default:
+                                        throw new Exception($"Unexpected {nameof(VisitErrorCode)}=[{errorCode}]");
+                                }
+                            }
+
+                            // Repack the T as Nullable<T>
+                            value = (TValue) underlyingValue;
+                        }
+                        else
+                        {
+                            if (!PropertyContainer.Visit(ref value, this, out var errorCode))
+                            {
+                                switch (errorCode)
+                                {
+                                    case VisitErrorCode.NullContainer:
+                                        throw new ArgumentNullException(nameof(value));
+                                    case VisitErrorCode.InvalidContainerType:
+                                        throw new InvalidContainerTypeException(value.GetType());
+                                    case VisitErrorCode.MissingPropertyBag:
+                                        throw new MissingPropertyBagException(value.GetType());
+                                    default:
+                                        throw new Exception($"Unexpected {nameof(VisitErrorCode)}=[{errorCode}]");
+                                }
                             }
                         }
                     }

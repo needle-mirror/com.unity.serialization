@@ -30,7 +30,10 @@ namespace Unity.Serialization
         {
             if (RuntimeTypeInfoCache<TValue>.IsValueType)
             {
-                return;
+                if (!(RuntimeTypeInfoCache<TValue>.IsNullable && RuntimeTypeInfoCache.IsContainerType(Nullable.GetUnderlyingType(typeof(TValue)))))
+                {
+                    return;
+                }
             }
             
             var serializedType = provider.GetSerializedType();
