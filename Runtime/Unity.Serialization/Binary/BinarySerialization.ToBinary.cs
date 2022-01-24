@@ -30,7 +30,7 @@ namespace Unity.Serialization.Binary
             
             using (visitor.Lock()) PropertyContainer.Visit(ref container, visitor);
             
-            if (!parameters.DisableSerializedReferences) context.GetSerializedReferences().Clear();
+            if (null == parameters.Context && !parameters.DisableSerializedReferences) context.GetSerializedReferences().Clear();
         }
     }
 }

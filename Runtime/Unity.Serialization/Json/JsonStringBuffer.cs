@@ -66,7 +66,11 @@ namespace Unity.Serialization.Json
         /// <param name="value">The value to write.</param>
         public void Write(int value)
         {
+#if COLLECTIONS_1_0_0_OR_NEWER
+            FixedString128Bytes f = default;
+#else
             FixedString128 f = default;
+#endif
             f.Append(value);
             Write(f);
         }
@@ -77,7 +81,11 @@ namespace Unity.Serialization.Json
         /// <param name="value">The value to write.</param>
         public void Write(uint value)
         {
+#if COLLECTIONS_1_0_0_OR_NEWER
+            FixedString128Bytes f = default;
+#else
             FixedString128 f = default;
+#endif
             f.Append(value);
             Write(f);
         }
@@ -88,7 +96,11 @@ namespace Unity.Serialization.Json
         /// <param name="value">The value to write.</param>
         public void Write(long value)
         {
+#if COLLECTIONS_1_0_0_OR_NEWER
+            FixedString128Bytes f = default;
+#else
             FixedString128 f = default;
+#endif
             f.Append(value);
             Write(f);
         }
@@ -99,7 +111,11 @@ namespace Unity.Serialization.Json
         /// <param name="value">The value to write.</param>
         public void Write(ulong value)
         {
+#if COLLECTIONS_1_0_0_OR_NEWER
+            FixedString128Bytes f = default;
+#else
             FixedString128 f = default;
+#endif
             f.Append(value);
             Write(f);
         }
@@ -110,7 +126,11 @@ namespace Unity.Serialization.Json
         /// <param name="value">The value to write.</param>
         public void Write(float value)
         {
+#if COLLECTIONS_1_0_0_OR_NEWER
+            FixedString128Bytes f = default;
+#else
             FixedString128 f = default;
+#endif
             f.Append(value);
             Write(f);
         }
@@ -121,7 +141,11 @@ namespace Unity.Serialization.Json
         /// <param name="value">The value to write.</param>
         public void Write(double value)
         {
+#if COLLECTIONS_1_0_0_OR_NEWER
+            FixedString128Bytes f = default;
+#else
             FixedString128 f = default;
+#endif
             f.Append((float)value);
             Write(f);
         }
@@ -267,7 +291,11 @@ namespace Unity.Serialization.Json
         /// Writes a copy of the specified <see cref="FixedString128"/> to the buffer.
         /// </summary>
         /// <param name="value">The value to write.</param>
+#if COLLECTIONS_1_0_0_OR_NEWER
+        void Write(FixedString128Bytes value)
+#else
         void Write(FixedString128 value)
+#endif
         {
             void* valuep = UnsafeUtility.AddressOf(ref value);
             ushort valuelen = *(ushort*) valuep;

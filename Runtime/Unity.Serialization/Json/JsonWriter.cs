@@ -281,7 +281,11 @@ namespace Unity.Serialization.Json
             /// <param name="value">The value to write.</param>
             public void WriteValue(int value)
             {
+#if COLLECTIONS_1_0_0_OR_NEWER
+                FixedString128Bytes f = default;
+#else
                 FixedString128 f = default;
+#endif
                 f.Append(value);
                 WriteValue(f);
             }
@@ -292,7 +296,11 @@ namespace Unity.Serialization.Json
             /// <param name="value">The value to write.</param>
             public void WriteValue(long value)
             {
+#if COLLECTIONS_1_0_0_OR_NEWER
+                FixedString128Bytes f = default;
+#else
                 FixedString128 f = default;
+#endif
                 f.Append(value);
                 WriteValue(f);
             }
@@ -311,7 +319,11 @@ namespace Unity.Serialization.Json
                         WritePositiveInfinity();
                 }
                 
+#if COLLECTIONS_1_0_0_OR_NEWER
+                FixedString128Bytes f = default;
+#else
                 FixedString128 f = default;
+#endif
                 f.Append(value);
                 WriteValue(f);
             }
@@ -424,7 +436,11 @@ namespace Unity.Serialization.Json
             /// Writes the specified fixed string to the buffer as a literal.
             /// </summary>
             /// <param name="value">The string value to write.</param>
+#if COLLECTIONS_1_0_0_OR_NEWER
+            void WriteValue(FixedString128Bytes value)
+#else
             void WriteValue(FixedString128 value)
+#endif
             {
                 var value_ptr = UnsafeUtility.AddressOf(ref value);
                 var value_len = *(ushort*) value_ptr;

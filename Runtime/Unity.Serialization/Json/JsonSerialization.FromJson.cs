@@ -429,6 +429,9 @@ namespace Unity.Serialization.Json
             value = container.Value;
             
             result = CreateResult(events);
+
+            serializedReferences?.Clear();
+
             return result.DidSucceed();
         }
 

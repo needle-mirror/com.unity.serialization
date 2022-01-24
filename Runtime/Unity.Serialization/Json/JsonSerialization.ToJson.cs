@@ -100,6 +100,8 @@ namespace Unity.Serialization.Json
             visitor.SetSimplified(parameters.Simplified);
             
             using (visitor.Lock()) PropertyContainer.Visit(ref container, visitor);
+
+            serializedReferences?.Clear();
         }
     }
 }
