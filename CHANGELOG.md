@@ -4,11 +4,23 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [1.7.4] - 2022-01-24
+## [1.8.2] - 2022-01-25
+### Changed
+* Updated `com.unity.properties` to version `1.8.2-preview`.
+
+## [1.8.1] - 2022-01-24
 ### Fixed
 * Fix nullable enum types for Unity `2021.2` and up.
 ### Changed
-* Updated `com.unity.properties` to version `1.7.4-preview`.
+* Updated `com.unity.properties` to version `1.8.1-preview`.
+
+## [1.8.0] - 2022-01-17
+### Changed
+* Updated `com.unity.properties` to version `1.8.0-preview`.
+* Updated `com.unity.jobs` to version `0.11.0-preview.6`.
+* Updated `com.unity.collections` to version `1.1.0`.
+* Updated `com.unity.burst` to version `1.6.4`.
+* Update Unity to version '2020.3'.
 
 ## [1.7.3] - 2021-08-04
 ### Fixed

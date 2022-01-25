@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Properties;
 using Unity.Serialization.Binary.Adapters;
 
 namespace Unity.Serialization.Binary
@@ -389,44 +390,82 @@ namespace Unity.Serialization.Binary
             switch (Type.GetTypeCode(type))
             {
                 case TypeCode.SByte:
-                    value = (TValue) (object) stream->ReadNext<sbyte>();
+                {
+                    var v = stream->ReadNext<sbyte>();
+                    TypeConversion.TryConvert(ref v, out value);
+                }
                     return;
                 case TypeCode.Int16:
-                    value = (TValue) (object) stream->ReadNext<short>();
+                {
+                    var v = stream->ReadNext<short>();
+                    TypeConversion.TryConvert(ref v, out value);
+                }
                     return;
                 case TypeCode.Int32:
-                    value = (TValue) (object) stream->ReadNext<int>();
+                {
+                    var v = stream->ReadNext<int>();
+                    TypeConversion.TryConvert(ref v, out value);
+                }
                     return;
                 case TypeCode.Int64:
-                    value = (TValue) (object) stream->ReadNext<long>();
+                {
+                    var v = stream->ReadNext<long>();
+                    TypeConversion.TryConvert(ref v, out value);
+                }
                     return;
                 case TypeCode.Byte:
-                    value = (TValue) (object) stream->ReadNext<byte>();
+                {
+                    var v = stream->ReadNext<byte>();
+                    TypeConversion.TryConvert(ref v, out value);
+                }
                     return;
                 case TypeCode.UInt16:
-                    value = (TValue) (object) stream->ReadNext<ushort>();
+                {
+                    var v = stream->ReadNext<ushort>();
+                    TypeConversion.TryConvert(ref v, out value);
+                }
                     return;
                 case TypeCode.UInt32:
-                    value = (TValue) (object) stream->ReadNext<uint>();
+                {
+                    var v = stream->ReadNext<uint>();
+                    TypeConversion.TryConvert(ref v, out value);
+                }
                     return;
                 case TypeCode.UInt64:
-                    value = (TValue) (object) stream->ReadNext<ulong>();
+                {
+                    var v = stream->ReadNext<ulong>();
+                    TypeConversion.TryConvert(ref v, out value);
+                }
                     return;
                 case TypeCode.Single:
-                    value = (TValue) (object) stream->ReadNext<float>();
+                {
+                    var v = stream->ReadNext<float>();
+                    TypeConversion.TryConvert(ref v, out value);
+                }
                     return;
                 case TypeCode.Double:
-                    value = (TValue) (object) stream->ReadNext<double>();
+                {
+                    var v = stream->ReadNext<double>();
+                    TypeConversion.TryConvert(ref v, out value);
+                }
                     return;
                 case TypeCode.Boolean:
-                    value = (TValue) (object) (stream->ReadNext<byte>() == 1);
+                {
+                    var v = stream->ReadNext<byte>() == 1;
+                    TypeConversion.TryConvert(ref v, out value);
+                }
                     return;
                 case TypeCode.Char:
-                    value = (TValue) (object) stream->ReadNext<char>();
+                {
+                    var v = stream->ReadNext<char>();
+                    TypeConversion.TryConvert(ref v, out value);
+                }
                     return;
                 case TypeCode.String:
-                    stream->ReadNext(out string _string);
-                    value = (TValue) (object) _string;
+                {
+                    stream->ReadNext(out var v);
+                    TypeConversion.TryConvert(ref v, out value);
+                }
                     return;
                 default:
                     throw new ArgumentOutOfRangeException();
