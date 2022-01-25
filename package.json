@@ -1,7 +1,7 @@
 {
   "name": "com.unity.serialization",
   "displayName": "Serialization",
-  "version": "1.7.4-preview",
+  "version": "1.7.5-preview",
   "unity": "2020.1",
   "unityRelease": "0f1",
   "description": "The Serialization package provides a high level API serialization and deserialization.",
@@ -14,15 +14,15 @@
     "com.unity.collections": "0.12.0-preview.13",
     "com.unity.burst": "1.3.5",
     "com.unity.jobs": "0.5.0-preview.14",
-    "com.unity.properties": "1.7.4-preview",
+    "com.unity.properties": "1.7.5-preview",
     "com.unity.test-framework.performance": "2.3.1-preview"
   },
   "upmCi": {
-    "footprint": "69cd7c527a34fef563ea9e24067513fcd807c64b"
+    "footprint": "4322ed6b7d23728e16f9f67509cf3c44452d27e4"
   },
   "repository": {
     "url": "https://github.cds.internal.unity3d.com/unity/com.unity.properties.git",
     "type": "git",
-    "revision": "84ae95efef203753ec32a75ac11f6abed94df12d"
+    "revision": "e8269577044b782d9d9907281145d999429d647b"
   }
 }
