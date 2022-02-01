@@ -1,5 +1,6 @@
 #if !NET_DOTS
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Collections.LowLevel.Unsafe.NotBurstCompatible;
 
 namespace Unity.Serialization.Binary.Adapters
 {
@@ -55,7 +56,7 @@ namespace Unity.Serialization.Binary.Adapters
             => writer->Add(value);
         
         void IBinaryAdapter<string>.Serialize(UnsafeAppendBuffer* writer, string value)
-            => writer->Add(value);
+            => writer->AddNBC(value);
 
         sbyte IBinaryAdapter<sbyte>.Deserialize(UnsafeAppendBuffer.Reader* reader)
             => reader->ReadNext<sbyte>();
@@ -95,7 +96,7 @@ namespace Unity.Serialization.Binary.Adapters
 
         string IBinaryAdapter<string>.Deserialize(UnsafeAppendBuffer.Reader* reader)
         {
-            reader->ReadNext(out string value);
+            reader->ReadNextNBC(out string value);
             return value;
         }
     }

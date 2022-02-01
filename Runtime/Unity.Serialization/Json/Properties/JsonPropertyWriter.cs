@@ -467,7 +467,7 @@ namespace Unity.Serialization.Json
             
             if (runAdapters && !RuntimeTypeInfoCache<TValue>.IsValueType)
             {
-#if !UNITY_DOTSPLAYER
+#if !UNITY_DOTSRUNTIME
                 if (value is UnityEngine.Object)
                 {
                     throw new NotSupportedException("JsonSerialization does not support polymorphic unity object references.");

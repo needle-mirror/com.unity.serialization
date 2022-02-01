@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Collections.LowLevel.Unsafe.NotBurstCompatible;
 using Unity.Properties;
 using Unity.Properties.Internal;
 using Unity.Serialization.Binary.Adapters;
@@ -162,7 +163,7 @@ namespace Unity.Serialization.Binary
             
             if (!RuntimeTypeInfoCache<TValue>.IsValueType)
             {
-#if !UNITY_DOTSPLAYER
+#if !UNITY_DOTSRUNTIME
                 if (runAdapters && value is UnityEngine.Object unityEngineObject)
                 {
                     // Special path for polymorphic unity object references.
@@ -195,7 +196,7 @@ namespace Unity.Serialization.Binary
                 if (typeof(TValue) != value.GetType() && !isRootAndTypeWasGiven)
                 {
                     m_Stream->Add(k_TokenPolymorphic);
-                    m_Stream->Add(value.GetType().AssemblyQualifiedName);
+                    m_Stream->AddNBC(value.GetType().AssemblyQualifiedName);
                 }
                 else
                 {

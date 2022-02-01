@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Collections.LowLevel.Unsafe.NotBurstCompatible;
 using Unity.Properties;
 using Unity.Serialization.Binary.Adapters;
 
@@ -161,7 +162,7 @@ namespace Unity.Serialization.Binary
                     stream->Add(UnsafeUtility.As<TValue, char>(ref value));
                     return;
                 case TypeCode.String:
-                    stream->Add(value as string);
+                    stream->AddNBC(value as string);
                     return;
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -255,7 +256,7 @@ namespace Unity.Serialization.Binary
                     stream->Add((char) value);
                     return;
                 case TypeCode.String:
-                    stream->Add(value as string);
+                    stream->AddNBC(value as string);
                     return;
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -317,7 +318,7 @@ namespace Unity.Serialization.Binary
                     value = UnsafeUtility.As<char, TValue>(ref _char);
                     return;
                 case TypeCode.String:
-                    stream->ReadNext(out string _string);
+                    stream->ReadNextNBC(out string _string);
                     value = (TValue) (object) _string;
                     return;
                 default:
@@ -463,7 +464,7 @@ namespace Unity.Serialization.Binary
                     return;
                 case TypeCode.String:
                 {
-                    stream->ReadNext(out var v);
+                    stream->ReadNextNBC(out var v);
                     TypeConversion.TryConvert(ref v, out value);
                 }
                     return;

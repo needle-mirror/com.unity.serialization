@@ -1,5 +1,6 @@
-#if !UNITY_DOTSPLAYER
+#if !UNITY_DOTSRUNTIME
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Collections.LowLevel.Unsafe.NotBurstCompatible;
 using UnityObject = UnityEngine.Object;
 
 namespace Unity.Serialization.Binary.Adapters
@@ -11,14 +12,14 @@ namespace Unity.Serialization.Binary.Adapters
         {
 #if UNITY_EDITOR
             var id = UnityEditor.GlobalObjectId.GetGlobalObjectIdSlow(value).ToString();
-            writer->Add(id);
+            writer->AddNBC(id);
 #endif
         }
 
         object Contravariant.IBinaryAdapter<UnityObject>.Deserialize(UnsafeAppendBuffer.Reader* reader)
         {
 #if UNITY_EDITOR
-            reader->ReadNext(out string value);
+            reader->ReadNextNBC(out string value);
             
             if (UnityEditor.GlobalObjectId.TryParse(value, out var id))
             {

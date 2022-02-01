@@ -65,7 +65,7 @@ namespace Unity.Serialization
 
         static void ConstructFromSerializedType<TValue>(ref TValue value, Type type, ISerializedTypeProvider provider)
         {
-#if !UNITY_DOTSPLAYER
+#if !UNITY_DOTSRUNTIME
             if (typeof(UnityEngine.Object).IsAssignableFrom(type))
             {
                 return;
@@ -101,7 +101,7 @@ namespace Unity.Serialization
 
         static void ConstructFromDeclaredType<TValue>(ref TValue value, ISerializedTypeProvider provider)
         {
-#if !UNITY_DOTSPLAYER
+#if !UNITY_DOTSRUNTIME
             if (typeof(UnityEngine.Object).IsAssignableFrom(typeof(TValue)))
             {
                 return;

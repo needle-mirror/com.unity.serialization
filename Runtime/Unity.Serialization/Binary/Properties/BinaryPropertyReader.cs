@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Collections.LowLevel.Unsafe.NotBurstCompatible;
 using Unity.Properties;
 using Unity.Properties.Internal;
 using Unity.Serialization.Binary.Adapters;
@@ -56,7 +57,7 @@ namespace Unity.Serialization.Binary
                 // no boxing
                 foreach (var property in collection.GetProperties(ref container))
                 {
-#if !UNITY_DOTSPLAYER
+#if !UNITY_DOTSRUNTIME
                     if (property.HasAttribute<NonSerializedAttribute>())
                         continue;
 #endif
@@ -72,7 +73,7 @@ namespace Unity.Serialization.Binary
                 // boxing
                 foreach (var property in properties.GetProperties(ref container))
                 {
-#if !UNITY_DOTSPLAYER
+#if !UNITY_DOTSRUNTIME
                     if (property.HasAttribute<NonSerializedAttribute>())
                         continue;
 #endif
@@ -230,7 +231,7 @@ namespace Unity.Serialization.Binary
                 return;
             }
 
-#if !UNITY_DOTSPLAYER
+#if !UNITY_DOTSRUNTIME
             if (runAdapters && token == k_TokenUnityEngineObjectReference)
             {
                 var unityEngineObject = default(UnityEngine.Object);
@@ -242,7 +243,7 @@ namespace Unity.Serialization.Binary
 
             if (token == k_TokenPolymorphic)
             {
-                m_Stream->ReadNext(out var assemblyQualifiedTypeName);
+                m_Stream->ReadNextNBC(out var assemblyQualifiedTypeName);
 
                 if (string.IsNullOrEmpty(assemblyQualifiedTypeName))
                 {
