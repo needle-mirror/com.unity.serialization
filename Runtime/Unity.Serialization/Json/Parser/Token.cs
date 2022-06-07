@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace Unity.Serialization.Json
 {    
     /// <summary>
@@ -40,6 +42,7 @@ namespace Unity.Serialization.Json
         Comment
     }
     
+    [StructLayout(LayoutKind.Sequential)]
     struct Token
     {
         /// <summary>

@@ -104,18 +104,18 @@ namespace Unity.Serialization.Json.Unsafe
                             chars[charIndex] = '\\';
                             break;
                         case '\"':
-                            chars[charIndex] = '\"';
+                            chars[charIndex] = '"';
                             break;
-                        case '\t':
+                        case 't':
                             chars[charIndex] = '\t';
                             break;
-                        case '\r':
+                        case 'r':
                             chars[charIndex] = '\r';
                             break;
-                        case '\n':
+                        case 'n':
                             chars[charIndex] = '\n';
                             break;
-                        case '\b':
+                        case 'b':
                             chars[charIndex] = '\b';
                             break;
                     }

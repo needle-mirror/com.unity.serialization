@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -8,6 +9,7 @@ namespace Unity.Serialization.Json
 {
     unsafe struct PackedBinaryWriter : IDisposable
     {
+        [StructLayout(LayoutKind.Sequential)]
         struct WriteTokensJobOutput
         {
             public int InputTokenNextIndex;
@@ -244,6 +246,7 @@ namespace Unity.Serialization.Json
             }
         }
 
+        [StructLayout(LayoutKind.Sequential)]
         struct Data
         {
             public int InputTokenNextIndex;

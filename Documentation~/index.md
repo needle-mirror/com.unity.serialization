@@ -12,9 +12,9 @@ _Note:  This is not a comprehensive guide on properties but rather what you need
 
 In order for the serialization package to traverse types they must first be described using properties. This can be done in one of two ways:
 
-**Reflection** - By including the `Unity.Properties.Reflection` assembly in your project. This will allow properties to lazily evaluate types at runtime. **IMPORTANT: This is unavailable on AOT platforms.**
+**Reflection** - This will allow properties to lazily evaluate types at runtime. **IMPORTANT: This is unavailable on AOT platforms in Unity version prior to 2022.1.**
 
-**CodeGen** - By instrumenting your types with `Unity.Properties.GeneratePropertyBagAttribute`. This will be consumed by a PostProcessor to generate the necessary code for visitation. _Note: CodeGen is only triggered in player builds._
+**Source Generator** - By instrumenting your types with `Unity.Properties.GeneratePropertyBagAttribute` and their assemblies with `Unity.Properties.GeneratePropertyBagsForAssemblyAttribute`. This will be consumed by a PostProcessor to generate the necessary code for visitation. _Note: CodeGen is only triggered in player builds._
 
 By default _public field members_ and members with the `Unity.Properties.CreatePropertyAttribute` are serialized.
 
@@ -47,7 +47,14 @@ If you are looking for a high performance streaming solution see the **Low Level
 
 The simplest method of converting between JSON and .NET objects is using the `JsonSerialization` API.
 
-```csharp
+```c#
+enum ItemType
+{
+    Weapon,
+    Armor,
+    Consumable
+}
+
 class Item 
 {
     public string Name;
@@ -110,17 +117,17 @@ var deserializedPlayer = JsonSerialization.FromJson<Player>(json);
 
 The serialization system can be extend through the use of adapters. An adapter lets you specify how a type should be serialized and deserialized.
 
-```csharp
+```c#
 // e.g. We have a manager for items in our game. It handles saving and loading from a database.
 // We instead want to write out just the `Id` of the item we have.
 
 class ItemAdapter : IJsonAdapter<Item>  
 {  
-    void IJsonAdapter<Item>.Serialize(JsonStringBuffer writer, Item value) 
-        => writer.Write(ItemManager.GetItemIdFromName(value.Name)); 
+    void IJsonAdapter<Item>.Serialize(in JsonSerializationContext<Item> context, Item value) 
+        => context.Writer.WriteValue(ItemManager.GetItemIdFromName(value.Name)); 
   
-    Item IJsonAdapter<Item>.Deserialize(SerializedValueView view)  
-        => ItemManager.CreateItemFromId(view.AsInt32());  
+    Item IJsonAdapter<Item>.Deserialize(in JsonDeserializationContext<Item> context)  
+        => ItemManager.CreateItemFromId(context.SerializedValue.AsInt32());  
 }
 
 /*
@@ -141,17 +148,17 @@ OUTPUT:
 */
 ```
 
-_Note: Unity.Serialization also supports **contravariant** adapters. See `Unity.Serialization.Adapter.Contravariant.IJsonAdapter<T>`_
+_Note: Unity.Serialization also supports **contravariant** adapters. See `Unity.Serialization.IContravariantJsonAdapter<T>`_
 
 Adapters can be registered in one of two ways:
 
 1) **Global Adapter** - This will be used by all calls to serialization and deserialization. Use this if you fully own the types and the adapter is stateless.
-```csharp
+```c#
 JsonSerialization.AddGlobalAdapter(new ItemAdapter());
 ```
 
 2) **User Defined Adapter** - This can be used on a per call basis. Use this if the adapter has state or the type needs to be handled differently depending on context.
-```csharp
+```c#
 var parameters = new JsonSerializationParameters  
 {  
     UserDefinedAdapters = new List<IJsonAdapter> { new ItemAdapter() }  
@@ -166,18 +173,18 @@ The serialization system supports migration and version through an API similar t
 
 In order to implement migration for a given type, an implementation of `IJsonMigration<T>`  must be provided.
 
-```csharp
+```c#
 class PlayerMigration : IJsonMigration<Player> 
 {
     int IJsonMigration<Player>.Version => 2;
-    Player IJsonMigration<Player>.Migrate(JsonMigrationContext ctx) { ... }
+    Player IJsonMigration<Player>.Migrate(in JsonMigrationContext ctx) { ... }
 }
 ```
 
 This interface requires implementations for:
 
 *   `Version`  - The current version for the type. This is used by both serialization to write the version, and by deserialization to determine if migration should take place.
-*   `T Migrate(JsonMigrationContext ctx)`  - The entry point for the actual migration. This method is called **if and only if** the versions do not match. The serialization system passes a context object which can be used to help read data from the underlying stream.
+*   `T Migrate(in JsonMigrationContext ctx)`  - The entry point for the actual migration. This method is called **if and only if** the versions do not match. The serialization system passes a context object which can be used to help read data from the underlying stream.
 
 The  `JsonMigrationContext`  gives the user access to:
 
@@ -186,12 +193,12 @@ The  `JsonMigrationContext`  gives the user access to:
 *   `ctx.Read<T>(SerializedValueView view)`  - This method and its overloads can be used to unpack full structures from the underlying stream. The read method will invoke the correct adapters and migrations on nested types. This is the preferred API over the direct access.
 
 E.g. Defining migration for a type.
-```csharp
+```c#
 class PlayerMigration : IJsonMigration<Player> 
 {
     int IJsonMigration<Player>.Version => 1;
 
-    Player IJsonMigration<Player>.Migrate(JsonMigrationContext ctx)
+    Player IJsonMigration<Player>.Migrate(in JsonMigrationContext ctx)
     {
         var serializedVersion = ctx.SerializedVersion;
         var serializedObject = ctx.SerializedObject;
@@ -235,7 +242,7 @@ The low level API supports both approaches and allows mixing the two together.
 **Forward-Only Reading** - This example shows how to use the reader to walk over the stream. The reader itself takes a `SerializedObjectReaderConfiguration` structure which allows to define the internal buffer sizes.
 
 E.g. This example will step through the stream and read all primitive values as a signed integral.
-```csharp
+```c#
 using (var reader = new SerializedObjectReader(stream))  
 {  
     NodeType node = reader.Step(out SerializedValueView current);  
@@ -255,7 +262,7 @@ using (var reader = new SerializedObjectReader(stream))
 **Document Object Model Reading** - This example shows how to read en entire object into memory as a view and interpet the values.
 
 E.g. This example will an object and unpack all fields.
-```csharp
+```c#
 INPUT:
 /*
 {
@@ -280,7 +287,7 @@ using (var reader = new SerializedObjectReader(stream))
 **Mixed Reading** - This example shows step through a stream until a certain point and read an object scope.
 
 E.g. Example of streaming through large arrays of objects and reading one object at a time.
-```csharp
+```c#
 /*
 INPUT:
 [{
@@ -313,7 +320,7 @@ using (var reader = new SerializedObjectReader(stream))
 ```
 
 E.g. Example of streaming through large arrays of objects and reading 100 objects at a time in batch.
-```csharp
+```c#
 using (var reader = new SerializedObjectReader(stream))
 {
     if (reader.Step() != NodeType.BeginArray) {

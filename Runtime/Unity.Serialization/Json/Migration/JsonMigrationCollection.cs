@@ -1,10 +1,9 @@
-#if !NET_DOTS
 using System;
 using System.Collections.Generic;
 using Unity.Serialization.Json.Unsafe;
 using UnityEngine;
 
-namespace Unity.Serialization.Json.Adapters
+namespace Unity.Serialization.Json
 {
     struct JsonMigrationCollection
     {
@@ -63,7 +62,7 @@ namespace Unity.Serialization.Json.Adapters
                 case IJsonMigration<TValue> typed:
                     value = typed.Migrate(context);
                     break;
-                case Contravariant.IJsonMigration<TValue> typedContravariant:
+                case IContravariantJsonMigration<TValue> typedContravariant:
                     value = (TValue) typedContravariant.Migrate(context);
                     break;
                 default:
@@ -85,7 +84,7 @@ namespace Unity.Serialization.Json.Adapters
                         return typed; 
                     }
                     
-                    if (adapter is Contravariant.IJsonMigration<TValue> typedContravariant)
+                    if (adapter is IContravariantJsonMigration<TValue> typedContravariant)
                     {
                         version = typedContravariant.Version;
                         return typedContravariant; 
@@ -103,7 +102,7 @@ namespace Unity.Serialization.Json.Adapters
                         return typed; 
                     }
                     
-                    if (adapter is Contravariant.IJsonMigration<TValue> typedContravariant)
+                    if (adapter is IContravariantJsonMigration<TValue> typedContravariant)
                     {
                         version = typedContravariant.Version;
                         return typedContravariant; 
@@ -116,4 +115,3 @@ namespace Unity.Serialization.Json.Adapters
         }
     }
 }
-#endif

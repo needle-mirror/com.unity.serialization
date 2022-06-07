@@ -1,7 +1,5 @@
-#if !NET_DOTS
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Properties;
-using Unity.Properties.Internal;
 
 namespace Unity.Serialization.Binary
 {
@@ -16,24 +14,22 @@ namespace Unity.Serialization.Binary
         /// <returns>A new instance of <typeparamref name="T"/> constructed from the serialized data.</returns>
         public static T FromBinary<T>(UnsafeAppendBuffer.Reader* stream, BinarySerializationParameters parameters = default)
         {
-            var context = parameters.Context ?? (parameters.RequiresThreadSafety ? new BinarySerializationContext() : GetSharedContext());
-            var visitor = context.GetBinaryPropertyReader();
+            var state = parameters.State ?? (parameters.RequiresThreadSafety ? new BinarySerializationState() : GetSharedState());
+            var visitor = state.GetBinaryPropertyReader();
             
             visitor.SetStream(stream);
             visitor.SetSerializedType(parameters.SerializedType);
             visitor.SetDisableRootAdapters(parameters.DisableRootAdapters);
             visitor.SetGlobalAdapters(GetGlobalAdapters());
             visitor.SetUserDefinedAdapters(parameters.UserDefinedAdapters);
-            visitor.SetSerializedReferences(parameters.DisableSerializedReferences ? default : context.GetSerializedReferences());
+            visitor.SetSerializedReferences(parameters.DisableSerializedReferences ? default : state.GetSerializedReferences());
             
             var container = new PropertyWrapper<T>(default);
+            using (visitor.Lock()) PropertyContainer.Accept(visitor, ref container);
             
-            using (visitor.Lock()) PropertyContainer.Visit(ref container, visitor);
-
-            if (null == parameters.Context && !parameters.DisableSerializedReferences) context.GetSerializedReferences().Clear();
+            if (null == parameters.State && !parameters.DisableSerializedReferences) state.GetSerializedReferences().Clear();
             
             return container.Value;
         }
     }
 }
-#endif

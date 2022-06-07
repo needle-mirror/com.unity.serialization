@@ -1,11 +1,12 @@
 using System.Collections.Generic;
 using NUnit.Framework;
-using UnityEngine;
+using Unity.Properties;
 
 namespace Unity.Serialization.Json.Tests
 {
     partial class JsonSerializationTests
     {
+        [GeneratePropertyBag]
         class Container
         {
             public object Value;
@@ -14,6 +15,8 @@ namespace Unity.Serialization.Json.Tests
         [Test]
         public void ToJson_ListWithMetadata_IsFormattedCorrectly()
         {
+            PropertyBag.RegisterList<object>();
+            
             var json = JsonSerialization.ToJson(new Container
             {
                 Value = new List<object>

@@ -1,26 +1,23 @@
-#if !UNITY_DOTSRUNTIME
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections.LowLevel.Unsafe.NotBurstCompatible;
-using UnityObject = UnityEngine.Object;
 
-namespace Unity.Serialization.Binary.Adapters
+namespace Unity.Serialization.Binary
 {
     unsafe partial class BinaryAdapter :
-        Contravariant.IBinaryAdapter<UnityObject>
+        IContravariantBinaryAdapter<UnityEngine.Object>
     {
-        void Contravariant.IBinaryAdapter<UnityObject>.Serialize(UnsafeAppendBuffer* writer, UnityObject value)
+        void IContravariantBinaryAdapter<UnityEngine.Object>.Serialize(IBinarySerializationContext context, UnityEngine.Object value)
         {
 #if UNITY_EDITOR
             var id = UnityEditor.GlobalObjectId.GetGlobalObjectIdSlow(value).ToString();
-            writer->AddNBC(id);
+            context.Writer->AddNBC(id);
 #endif
         }
 
-        object Contravariant.IBinaryAdapter<UnityObject>.Deserialize(UnsafeAppendBuffer.Reader* reader)
+        object IContravariantBinaryAdapter<UnityEngine.Object>.Deserialize(IBinaryDeserializationContext context)
         {
 #if UNITY_EDITOR
-            reader->ReadNextNBC(out string value);
-            
+            context.Reader->ReadNextNBC(out var value);
+
             if (UnityEditor.GlobalObjectId.TryParse(value, out var id))
             {
                 return UnityEditor.GlobalObjectId.GlobalObjectIdentifierToObjectSlow(id);
@@ -30,4 +27,3 @@ namespace Unity.Serialization.Binary.Adapters
         }
     }
 }
-#endif

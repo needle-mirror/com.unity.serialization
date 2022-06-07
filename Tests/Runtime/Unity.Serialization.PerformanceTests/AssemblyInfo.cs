@@ -1,3 +1,3 @@
 using Unity.Properties;
 
-[assembly: GeneratePropertyBagsInEditor]
+[assembly:GeneratePropertyBagsForAssembly]

@@ -1,9 +1,6 @@
-#if !NET_DOTS
 using System;
 using System.Collections.Generic;
 using Unity.Properties;
-using Unity.Properties.Internal;
-using Unity.Serialization.Json.Adapters;
 using Unity.Serialization.Json.Unsafe;
 
 namespace Unity.Serialization.Json
@@ -181,6 +178,10 @@ namespace Unity.Serialization.Json
                 m_Visitor.m_SerializedType = m_SerializedType;
             }
         }
+        
+#if UNITY_EDITOR
+        static readonly string s_EmptyGlobalObjectId = new UnityEditor.GlobalObjectId().ToString();
+#endif
 
         UnsafeValueView m_View;
         Type m_SerializedType;
@@ -272,19 +273,21 @@ namespace Unity.Serialization.Json
         {
             if (properties is IPropertyWrapper)
             {
-                if (properties is IPropertyList<TContainer> propertyList)
+                using (var enumerator = properties.GetProperties().GetEnumerator())
                 {
-                    foreach (var property in propertyList.GetProperties(ref container))
+                    if (enumerator.MoveNext() && null != enumerator.Current)
                     {
+                        var property = enumerator.Current;
+                
                         using (CreatePropertyScope(property))
                         {
-                            ((IPropertyAccept<TContainer>)property).Accept(this, ref container);
+                            property.Accept(this, ref container);
                         }
                     }
-                }
-                else
-                {
-                    throw new Exception("PropertyWrapper is missing the built in property bag.");
+                    else
+                    {
+                        throw new InvalidOperationException("IPropertyWrapper has no properties");
+                    }
                 }
             }
             else
@@ -306,19 +309,12 @@ namespace Unity.Serialization.Json
                     }
                 }
 
-                if (properties is IPropertyList<TContainer> propertyList)
+                foreach (var property in properties.GetProperties(ref container))
                 {
-                    foreach (var property in propertyList.GetProperties(ref container))
-                    {
-                        AcceptProperty(ref container, obj, property);
-                    }
-                }
-                else
-                {
-                    foreach (var property in properties.GetProperties(ref container))
-                    {
-                        AcceptProperty(ref container, obj, property);
-                    }
+                    if (PropertyChecks.IsPropertyExcludedFromSerialization(property))
+                        continue;
+                    
+                    AcceptProperty(ref container, obj, property);
                 }
             }
         }
@@ -330,7 +326,7 @@ namespace Unity.Serialization.Json
                 using (CreatePropertyScope(property))
                 using (CreateViewScope(value))
                 {
-                    ((IPropertyAccept<TContainer>)property).Accept(this, ref container);
+                    property.Accept(this, ref container);
                 }
 
                 return;
@@ -343,7 +339,7 @@ namespace Unity.Serialization.Json
                     using (CreatePropertyScope(property))
                     using (CreateViewScope(value))
                     {
-                        ((IPropertyAccept<TContainer>)property).Accept(this, ref container);
+                        property.Accept(this, ref container);
                     }
 
                     return;
@@ -357,7 +353,7 @@ namespace Unity.Serialization.Json
                     using (CreatePropertyScope(property))
                     using (CreateViewScope(value))
                     {
-                        ((IPropertyAccept<TContainer>)property).Accept(this, ref container);
+                        property.Accept(this, ref container);
                     }
 
                     return;
@@ -494,19 +490,73 @@ namespace Unity.Serialization.Json
             }
         }
 
-        void ReadValue<TValue>(ref TValue value, UnsafeValueView view, bool isRoot = false)
+        internal void ReadValue<TValue>(ref TValue value, UnsafeValueView view, bool isRoot = false)
         {
             var runAdapters = !(isRoot && m_DisableRootAdapters);
 
             // Special check so we have higher perf for primitives.
-            if (runAdapters && !RuntimeTypeInfoCache<TValue>.IsPrimitiveOrString)
+            if (runAdapters && !TypeTraits<TValue>.IsPrimitiveOrString)
+                ReadValueWithAdapters(ref value, view, m_Adapters.GetEnumerator(), isRoot);
+            else 
+                ReadValueWithoutAdapters(ref value, view, isRoot);
+        }
+
+        internal void ReadValueWithAdapters<TValue>(ref TValue value, UnsafeValueView view, JsonAdapterCollection.Enumerator adapters, bool isRoot = false)
+        {
+            while (adapters.MoveNext())
             {
-                if (m_Adapters.TryDeserialize(view, ref value, m_SerializedTypeProvider.Events))
+                switch (adapters.Current)
                 {
-                    return;
+                    case IJsonAdapter<TValue> typed:
+                        try
+                        {
+                            value = typed.Deserialize(new JsonDeserializationContext<TValue>(this, adapters, value, view, isRoot));
+                        }
+                        catch (Exception e)
+                        {
+                            m_SerializedTypeProvider.Events.Add(new DeserializationEvent(EventType.Exception, e));
+                        }
+                        return;
+                    
+                    case IContravariantJsonAdapter<TValue> typedContravariant:
+                        try
+                        {
+                            // NOTE: Boxing
+                            value = (TValue) typedContravariant.Deserialize((IJsonDeserializationContext) new JsonDeserializationContext<TValue>(this, adapters, value, view, isRoot));
+                        }
+                        catch (Exception e)
+                        {
+                            m_SerializedTypeProvider.Events.Add(new DeserializationEvent(EventType.Exception, e));
+                        }
+                        return;
                 }
             }
 
+            ReadValueWithoutAdapters(ref value, view, isRoot);
+        }
+
+        internal void ReadValueWithoutAdapters<TValue>(ref TValue value, UnsafeValueView view, bool isRoot = false)
+        {
+#if UNITY_EDITOR
+            if (TypeTraits<TValue>.IsLazyLoadReference && view.Type == TokenType.String)
+            {
+                var json = view.AsStringView().ToString();
+                
+                if (json == s_EmptyGlobalObjectId) // Workaround issue where GlobalObjectId.TryParse returns false for empty GlobalObjectId
+                    return;
+
+                if (UnityEditor.GlobalObjectId.TryParse(json, out var id))
+                {
+                    var instanceID = UnityEditor.GlobalObjectId.GlobalObjectIdentifierToInstanceIDSlow(id);
+                    PropertyContainer.SetValue(ref value, "m_InstanceID", instanceID);
+                    return;
+                }
+
+                m_SerializedTypeProvider.Events.Add(new DeserializationEvent(EventType.Error, $"An error occured while deserializing asset reference Value=[{json}]."));
+                return;
+            }
+#endif
+            
             switch (view.Type)
             {
                 case TokenType.String:
@@ -555,10 +605,10 @@ namespace Unity.Serialization.Json
 
                     m_SerializedTypeProvider.View = view;
                     m_SerializedTypeProvider.SerializedType = isRoot ? m_SerializedType : null;
-                    
-                    if (RuntimeTypeInfoCache<TValue>.IsNullable)
-                        m_SerializedTypeProvider.SerializedType = Nullable.GetUnderlyingType(typeof(TValue));
 
+                    if (TypeTraits<TValue>.IsNullable)
+                        m_SerializedTypeProvider.SerializedType = Nullable.GetUnderlyingType(typeof(TValue));
+                    
                     if (metadata.IsSerializedReference)
                     {
                         if (null == m_SerializedReferences)
@@ -590,24 +640,24 @@ namespace Unity.Serialization.Json
                     using (new SerializedContainerMetadataScope(this, metadata))
                     using (new UnsafeViewScope(this, view))
                     {
-                        if (RuntimeTypeInfoCache<TValue>.IsNullable)
+                        if (TypeTraits<TValue>.IsNullable)
                         {
                             // Unpack Nullable<T> as T
                             var underlyingType = Nullable.GetUnderlyingType(typeof(TValue));
                             var underlyingValue = System.Convert.ChangeType(value, underlyingType);
                             
-                            if (!PropertyContainer.Visit(ref underlyingValue, this, out var errorCode))
+                            if (!PropertyContainer.TryAccept(this, ref underlyingValue, out var errorCode))
                             {
                                 switch (errorCode)
                                 {
-                                    case VisitErrorCode.NullContainer:
+                                    case VisitReturnCode.NullContainer:
                                         throw new ArgumentNullException(nameof(value));
-                                    case VisitErrorCode.InvalidContainerType:
+                                    case VisitReturnCode.InvalidContainerType:
                                         throw new InvalidContainerTypeException(value.GetType());
-                                    case VisitErrorCode.MissingPropertyBag:
+                                    case VisitReturnCode.MissingPropertyBag:
                                         throw new MissingPropertyBagException(value.GetType());
                                     default:
-                                        throw new Exception($"Unexpected {nameof(VisitErrorCode)}=[{errorCode}]");
+                                        throw new Exception($"Unexpected {nameof(VisitReturnCode)}=[{errorCode}]");
                                 }
                             }
 
@@ -616,18 +666,18 @@ namespace Unity.Serialization.Json
                         }
                         else
                         {
-                            if (!PropertyContainer.Visit(ref value, this, out var errorCode))
+                            if (!PropertyContainer.TryAccept(this, ref value, out var errorCode))
                             {
                                 switch (errorCode)
                                 {
-                                    case VisitErrorCode.NullContainer:
+                                    case VisitReturnCode.NullContainer:
                                         throw new ArgumentNullException(nameof(value));
-                                    case VisitErrorCode.InvalidContainerType:
+                                    case VisitReturnCode.InvalidContainerType:
                                         throw new InvalidContainerTypeException(value.GetType());
-                                    case VisitErrorCode.MissingPropertyBag:
+                                    case VisitReturnCode.MissingPropertyBag:
                                         throw new MissingPropertyBagException(value.GetType());
                                     default:
-                                        throw new Exception($"Unexpected {nameof(VisitErrorCode)}=[{errorCode}]");
+                                        throw new Exception($"Unexpected {nameof(VisitReturnCode)}=[{errorCode}]");
                                 }
                             }
                         }
@@ -639,4 +689,3 @@ namespace Unity.Serialization.Json
         }
     }
 }
-#endif

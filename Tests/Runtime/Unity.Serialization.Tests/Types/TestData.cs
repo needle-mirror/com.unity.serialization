@@ -179,10 +179,16 @@ namespace Unity.Serialization.Tests
     }
 
     [GeneratePropertyBag]
-    class ClassWithNullable
+    class ClassWithNullablePrimitives
     {
         public int? NullableInt32;
         public EnumUInt8? NullableEnumUInt8;
+    }
+
+    [GeneratePropertyBag]
+    class ClassWithNullableContainers
+    {
+        public StructWithPrimitives? NullableStructWithPrimitives;
     }
 
     [GeneratePropertyBag]
@@ -213,5 +219,11 @@ namespace Unity.Serialization.Tests
         public int A;
         public int B;
         [NonSerialized] public int C;
+    }
+
+    [GeneratePropertyBag]
+    class ClassWithMultidimensionalArray
+    {
+        public int[,] MultidimensionalArrayInt32;
     }
 }

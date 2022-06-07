@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.InteropServices;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -84,6 +85,7 @@ namespace Unity.Serialization.Json
             MultiLine
         }
         
+        [StructLayout(LayoutKind.Sequential)]
         struct TokenizeJobOutput
         {
             public Token* Tokens;
@@ -115,6 +117,7 @@ namespace Unity.Serialization.Json
             public int TokensLength;
             public int TokensNextIndex;
             public int TokenParentIndex;
+            public bool IsFinalBlock;
             public CommentType CommentType;
             
             void Break(int result)
@@ -388,7 +391,7 @@ namespace Unity.Serialization.Json
                         Type = TokenType.String,
                         Parent = parent,
                         Start = start,
-                        End = -1
+                        End = IsFinalBlock ? CharBufferPosition : -1
                     };
 
                     return k_ResultEndOfStream;
@@ -449,7 +452,7 @@ namespace Unity.Serialization.Json
                         Type = TokenType.Primitive,
                         Parent = parent,
                         Start = start,
-                        End = -1
+                        End = IsFinalBlock ? CharBufferPosition : -1
                     };
 
                     return k_ResultEndOfStream;
@@ -545,7 +548,7 @@ namespace Unity.Serialization.Json
                         Type = TokenType.Comment,
                         Parent = parent,
                         Start = start,
-                        End = -1
+                        End = IsFinalBlock ? CharBufferPosition : -1
                     };
                 }
                 
@@ -553,6 +556,7 @@ namespace Unity.Serialization.Json
             }
         }
 
+        [StructLayout(LayoutKind.Sequential)]
         struct DiscardCompletedJobOutput
         {
             public int Result;
@@ -666,6 +670,7 @@ namespace Unity.Serialization.Json
 
         const int k_DefaultBufferSize = 1024;
 
+        [StructLayout(LayoutKind.Sequential)]
         struct Data
         {
             public int BufferSize;
@@ -676,8 +681,7 @@ namespace Unity.Serialization.Json
             public ushort PrevChar;
             public CommentType CommentType;
             public JsonValidationType ValidationType;
-            public JsonStandardValidator StandardValidator;
-            public JsonSimpleValidator SimpleValidator;
+            public JsonValidator Validator;
         }
 
         readonly Allocator m_Label;
@@ -724,10 +728,8 @@ namespace Unity.Serialization.Json
             switch (validation)
             {
                 case JsonValidationType.Standard:
-                    m_Data->StandardValidator = new JsonStandardValidator(label);
-                    break;
                 case JsonValidationType.Simple:
-                    m_Data->SimpleValidator = new JsonSimpleValidator(label);
+                    m_Data->Validator = new JsonValidator(validation, label);
                     break;
             }
 
@@ -747,11 +749,9 @@ namespace Unity.Serialization.Json
 
             switch (m_Data->ValidationType)
             {
-                case JsonValidationType.Standard:
-                    m_Data->StandardValidator.Reset();
-                    break;
                 case JsonValidationType.Simple:
-                    m_Data->SimpleValidator.Reset();
+                case JsonValidationType.Standard:
+                    m_Data->Validator.Reset();
                     break;
             }
         }
@@ -763,7 +763,6 @@ namespace Unity.Serialization.Json
             m_Data->BufferSize = newLength;
         }
 
-        /// <inheritdoc />
         /// <summary>
         /// Writes <see cref="T:Unity.Serialization.Token" /> objects to the internal buffer.
         /// </summary>s
@@ -804,7 +803,8 @@ namespace Unity.Serialization.Json
                         Tokens = m_Data->JsonTokens,
                         TokensLength = m_Data->BufferSize,
                         TokensNextIndex = m_Data->TokenNextIndex,
-                        TokenParentIndex = m_Data->TokenParentIndex
+                        TokenParentIndex = m_Data->TokenParentIndex,
+                        IsFinalBlock = isFinalBlock
                     }.Run();
 
                     if (output.Result == k_ResultTokenBufferOverflow)
@@ -820,8 +820,9 @@ namespace Unity.Serialization.Json
                 
                 switch (m_Data->ValidationType)
                 {
-                    case JsonValidationType.Standard: 
-                        result = m_Data->StandardValidator.Validate(buffer, position, count);
+                    case JsonValidationType.Simple: 
+                    case JsonValidationType.Standard:
+                        result = m_Data->Validator.Validate(buffer, position, count);
                         break;
                 }
                 
@@ -902,13 +903,7 @@ namespace Unity.Serialization.Json
             }.Run();
 
             if (output.Result == k_ResultStackOverflow)
-            {
-#if !NET_DOTS
                 throw new StackOverflowException($"Tokenization depth limit of {depth} exceeded.");
-#else
-                throw new Exception($"Tokenization depth limit of {depth} exceeded.");
-#endif
-            }
 
             m_Data->TokenNextIndex = output.NextTokenIndex;
             m_Data->TokenParentIndex = output.ParentTokenIndex;
@@ -926,11 +921,9 @@ namespace Unity.Serialization.Json
             
             switch (m_Data->ValidationType)
             {
-                case JsonValidationType.Standard: 
-                    m_Data->StandardValidator.Dispose();
-                    break;
                 case JsonValidationType.Simple: 
-                    m_Data->SimpleValidator.Dispose();
+                case JsonValidationType.Standard: 
+                    m_Data->Validator.Dispose();
                     break;
             }
             

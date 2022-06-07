@@ -1,5 +1,5 @@
-using System.Numerics;
 using System.Text;
+using UnityEngine;
 using Unity.Properties;
 
 namespace Unity.Serialization.Json.PerformanceTests

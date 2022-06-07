@@ -1,6 +1,5 @@
-#if !NET_DOTS
 using System;
-using Unity.Properties.Internal;
+using Unity.Properties;
 
 namespace Unity.Serialization
 {
@@ -28,9 +27,9 @@ namespace Unity.Serialization
     {
         internal static void Construct<TValue>(ref TValue value, ISerializedTypeProvider provider)
         {
-            if (RuntimeTypeInfoCache<TValue>.IsValueType)
+            if (TypeTraits<TValue>.IsValueType)
             {
-                if (!(RuntimeTypeInfoCache<TValue>.IsNullable && RuntimeTypeInfoCache.IsContainerType(Nullable.GetUnderlyingType(typeof(TValue)))))
+                if (!(TypeTraits<TValue>.IsNullable && TypeTraits.IsContainer(Nullable.GetUnderlyingType(typeof(TValue)))))
                 {
                     return;
                 }
@@ -49,13 +48,13 @@ namespace Unity.Serialization
                 return;
             }
             
-            if (RuntimeTypeInfoCache<TValue>.IsObjectType && null == value)
+            if (TypeTraits<TValue>.IsObject && null == value)
             {
                 value = (TValue) provider.GetDefaultObject();
                 return;
             }
             
-            if (RuntimeTypeInfoCache<TValue>.IsAbstractOrInterface)
+            if (TypeTraits<TValue>.IsAbstractOrInterface)
             {
                 throw new ArgumentException();
             }
@@ -65,29 +64,10 @@ namespace Unity.Serialization
 
         static void ConstructFromSerializedType<TValue>(ref TValue value, Type type, ISerializedTypeProvider provider)
         {
-#if !UNITY_DOTSRUNTIME
-            if (typeof(UnityEngine.Object).IsAssignableFrom(type))
-            {
-                return;
-            }
-#endif
-            
             if (type.IsArray)
             {
                 var count = provider.GetArrayLength();
-                
-                if (null == value || (value as Array)?.Length != count)
-                {
-                    var elementType = type.GetElementType();
-
-                    if (elementType == null)
-                    {
-                        throw new ArgumentException("Failed to construct type. Missing array element type.");
-                    }
-
-                    value = (TValue) (object) Array.CreateInstance(elementType, count);
-                }
-
+                value = TypeUtility.InstantiateArray<TValue>(type, count);
                 return;
             }
             
@@ -95,33 +75,20 @@ namespace Unity.Serialization
             {
                 return;
             }
-                
-            value = (TValue) Activator.CreateInstance(type);
+
+            value = TypeUtility.Instantiate<TValue>(type);
         }
 
         static void ConstructFromDeclaredType<TValue>(ref TValue value, ISerializedTypeProvider provider)
         {
-#if !UNITY_DOTSRUNTIME
-            if (typeof(UnityEngine.Object).IsAssignableFrom(typeof(TValue)))
-            {
-                return;
-            }
-#endif
-            
             if (typeof(TValue).IsArray)
             {
                 var count = provider.GetArrayLength();
                 
                 if (null == value || (value as Array)?.Length != count)
                 {
-                    var elementType = typeof(TValue).GetElementType();
-
-                    if (elementType == null)
-                    {
-                        throw new ArgumentException("Failed to construct type. Missing array element type.");
-                    }
-
-                    value = (TValue) (object) Array.CreateInstance(elementType, count);
+                    value = TypeUtility.InstantiateArray<TValue>(count);
+                    return;
                 }
 
                 return;
@@ -129,9 +96,8 @@ namespace Unity.Serialization
 
             if (null == value)
             {
-                value = Activator.CreateInstance<TValue>();
+                value = TypeUtility.Instantiate<TValue>();
             }
         }
     }
 }
-#endif

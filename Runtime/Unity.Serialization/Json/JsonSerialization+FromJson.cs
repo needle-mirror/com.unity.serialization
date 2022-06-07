@@ -1,11 +1,9 @@
-#if !NET_DOTS
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Unity.Mathematics;
 using Unity.Properties;
-using Unity.Properties.Internal;
 
 namespace Unity.Serialization.Json
 {
@@ -131,20 +129,6 @@ namespace Unity.Serialization.Json
     
     public static partial class JsonSerialization
     {
-        static readonly JsonPropertyReader s_SharedJsonPropertyReader = new JsonPropertyReader();
-        static readonly List<DeserializationEvent> s_SharedDeserializationEvents = new List<DeserializationEvent>();
-
-        static JsonPropertyReader GetSharedJsonPropertyReader()
-        {
-            return s_SharedJsonPropertyReader;
-        }
-        
-        static List<DeserializationEvent> GetSharedDeserializationEvents()
-        {
-            s_SharedDeserializationEvents.Clear();
-            return s_SharedDeserializationEvents;
-        }
-
         static SerializedObjectReaderConfiguration GetDefaultConfigurationForString(string json, JsonSerializationParameters parameters = default)
         {
             var configuration = SerializedObjectReaderConfiguration.Default;
@@ -256,7 +240,8 @@ namespace Unity.Serialization.Json
                 {
                     using (var reader = new SerializedObjectReader(new UnsafeBuffer<char>(ptr, json.Length), GetDefaultConfigurationForString(json, parameters)))
                     {
-                        return TryFromJson(reader, ref container, out result, parameters);
+                        reader.Read(out var view);
+                        return TryFromJson(view, ref container, out result, parameters);
                     }
                 }
             }
@@ -322,7 +307,8 @@ namespace Unity.Serialization.Json
         {
             using (var reader = new SerializedObjectReader(file.FullName, GetDefaultConfigurationForFile(file, parameters)))
             {
-                return TryFromJson(reader, ref container, out result, parameters);
+                reader.Read(out var view);
+                return TryFromJson(view, ref container, out result, parameters);
             }
         }
 
@@ -386,27 +372,67 @@ namespace Unity.Serialization.Json
         {
             using (var reader = new SerializedObjectReader(stream, GetDefaultConfigurationForStream(stream, parameters)))
             {
-                return TryFromJson(reader, ref container, out result, parameters);
+                reader.Read(out var view);
+                return TryFromJson(view, ref container, out result, parameters);
             }
         }
         
-        static bool TryFromJson<T>(SerializedObjectReader reader, ref T value, out DeserializationResult result, JsonSerializationParameters parameters = default)
+        
+
+        /// <summary>
+        /// Deserializes from the specified SerializedValueView and returns a new instance of <typeparamref name="T"/>.
+        /// </summary>
+        /// <param name="view">The view to read from.</param>
+        /// <typeparam name="T">The type to deserialize.</typeparam>
+        /// <param name="parameters">The reader parameters to use.</param>
+        /// <returns>A new instance of <typeparamref name="T"/> constructed from the serialized data.</returns>
+        public static T FromJson<T>(SerializedValueView view, JsonSerializationParameters parameters = default)
+        {
+            var container = default(T);
+            if (!TryFromJson(view, ref container, out var result, parameters))
+            {
+                result.Throw();
+            }
+
+            return container;
+        }
+
+        /// <summary>
+        /// Deserializes from the specified <see cref="SerializedValueView"/> in to an existing instance of <typeparamref name="T"/>.
+        /// </summary>
+        /// <param name="view">The view to read from.</param>
+        /// <param name="container">The reference to be overwritten.</param>
+        /// <param name="parameters">The reader parameters to use.</param>
+        /// <typeparam name="T">The type to deserialize.</typeparam>
+        public static void FromJsonOverride<T>(SerializedValueView view, ref T container, JsonSerializationParameters parameters = default)
+        {
+            if (!TryFromJsonOverride(view, ref container, out var result, parameters))
+            {
+                result.Throw();
+            }
+        }
+        
+        /// <summary>
+        /// Deserializes from the specified <see cref="SerializedValueView"/> and returns a new instance of <typeparamref name="T"/>.
+        /// </summary>
+        /// <param name="view">The view to read from.</param>
+        /// <param name="container">When this method returns, contains the deserialized value.</param>
+        /// <param name="result">The results structure containing any errors or exceptions.</param>
+        /// <param name="parameters">The reader parameters to use.</param>
+        /// <typeparam name="T">The type to deserialize.</typeparam>
+        /// <returns>True if the deserialization succeeded; otherwise, false.</returns>
+        public static bool TryFromJson<T>(SerializedValueView view, ref T container, out DeserializationResult result, JsonSerializationParameters parameters = default)
         {
             var serializedReferences = default(SerializedReferences);
-
+            var state = parameters.State ?? (parameters.RequiresThreadSafety ? new JsonSerializationState() : GetSharedState());
+            
             if (!parameters.DisableSerializedReferences)
-            {
-                serializedReferences = parameters.RequiresThreadSafety ? new SerializedReferences() : GetSharedSerializedReferences();
-            }
+                serializedReferences = state.GetSerializedReferences();
             
-            reader.Read(out var document);
+            var visitor = state.GetJsonPropertyReader();
+            var events = state.GetDeserializationEvents();
             
-            var createReader = parameters.RequiresThreadSafety || s_SharedJsonPropertyReader.IsLocked;
-            
-            var visitor = createReader ? new JsonPropertyReader() : GetSharedJsonPropertyReader();
-            var events = createReader ? new List<DeserializationEvent>() : GetSharedDeserializationEvents();
-            
-            visitor.SetView(document.AsUnsafe());
+            visitor.SetView(view.AsUnsafe());
             visitor.SetSerializedType(parameters.SerializedType);
             visitor.SetDisableRootAdapters(parameters.DisableRootAdapters);
             visitor.SetGlobalAdapters(GetGlobalAdapters());
@@ -417,26 +443,39 @@ namespace Unity.Serialization.Json
             visitor.SetEvents(events);
             visitor.SetSerializedReferences(serializedReferences);
             
-            var container = new PropertyWrapper<T>(value);
+            var wrapper = new PropertyWrapper<T>(container);
             try
             {
-                using (visitor.Lock()) PropertyContainer.Visit(ref container, visitor);
+                using (visitor.Lock()) PropertyContainer.Accept(visitor, ref wrapper);
             }
             catch (Exception e)
             {
                 events.Add(new DeserializationEvent(EventType.Exception, e));
             }
-            value = container.Value;
+            container = wrapper.Value;
             
             result = CreateResult(events);
-
-            serializedReferences?.Clear();
-
+            
+            if (null == parameters.State && null != serializedReferences) serializedReferences.Clear();
+            
             return result.DidSucceed();
+        }
+        
+        /// <summary>
+        /// Deserializes from the specified SerializedValueView in to an existing instance of <typeparamref name="T"/>.
+        /// </summary>
+        /// <param name="view">The view to read from.</param>
+        /// <param name="container">The reference to be overwritten.</param>
+        /// <param name="result">The results structure containing any errors or exceptions.</param>
+        /// <param name="parameters">The reader parameters to use.</param>
+        /// <typeparam name="T">The type to deserialize.</typeparam>
+        /// <returns>True if the deserialization succeeded; otherwise, false.</returns>
+        public static bool TryFromJsonOverride<T>(SerializedValueView view, ref T container, out DeserializationResult result, JsonSerializationParameters parameters = default)
+        {
+            return TryFromJson(view, ref container, out result, parameters);
         }
 
         static DeserializationResult CreateResult(List<DeserializationEvent> events)
             => events.Count > 0 ? new DeserializationResult(events.ToList()) : default;
     }
 }
-#endif

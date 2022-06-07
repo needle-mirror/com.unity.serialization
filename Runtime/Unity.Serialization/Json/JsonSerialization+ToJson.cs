@@ -1,21 +1,11 @@
-#if !NET_DOTS
-using System;
 using System.IO;
 using Unity.Collections;
 using Unity.Properties;
-using Unity.Properties.Internal;
 
 namespace Unity.Serialization.Json
 {
     public static partial class JsonSerialization
     {
-        static readonly JsonPropertyWriter s_SharedJsonPropertyWriter = new JsonPropertyWriter();
-        
-        static JsonPropertyWriter GetSharedJsonPropertyWriter()
-        {
-            return s_SharedJsonPropertyWriter;
-        }
-        
         /// <summary>
         /// Serializes the given object to a json file at the specified path.
         /// </summary>
@@ -47,27 +37,6 @@ namespace Unity.Serialization.Json
         /// <summary>
         /// Writes a property container the specified buffer.
         /// </summary>
-        /// <param name="buffer">The buffer to write the object to.</param>
-        /// <param name="value">The container to write.</param>
-        /// <param name="parameters">The parameters to use when writing.</param>
-        /// <typeparam name="T">The type to serialize.</typeparam>
-        [Obsolete("JsonStringBuffer has been deprecated. Use JsonWriter instead. (RemovedAfter 2020-09-15)")]
-        public static void ToJson<T>(JsonStringBuffer buffer, T value, JsonSerializationParameters parameters = default)
-        {
-            using (var writer = new JsonWriter(parameters.InitialCapacity, Allocator.Temp, new JsonWriterOptions {Minified = parameters.Minified, Simplified = parameters.Simplified}))
-            {
-                ToJson(writer, value, parameters);
-
-                unsafe
-                {
-                    buffer.Write(writer.AsUnsafe().GetUnsafeReadOnlyPtr(), writer.AsUnsafe().Length);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Writes a property container the specified buffer.
-        /// </summary>
         /// <param name="writer">The buffer to write the object to.</param>
         /// <param name="value">The container to write.</param>
         /// <param name="parameters">The parameters to use when writing.</param>
@@ -77,16 +46,17 @@ namespace Unity.Serialization.Json
             var container = new PropertyWrapper<T>(value);
             
             var serializedReferences = default(SerializedReferences);
+            var state = parameters.State ?? (parameters.RequiresThreadSafety ? new JsonSerializationState() : GetSharedState());
 
             if (!parameters.DisableSerializedReferences)
             {
-                serializedReferences = parameters.RequiresThreadSafety ? new SerializedReferences() : GetSharedSerializedReferences();
-                var serializedReferenceVisitor = parameters.RequiresThreadSafety ? new SerializedReferenceVisitor() : GetSharedSerializedReferenceVisitor();
+                serializedReferences = state.GetSerializedReferences();
+                var serializedReferenceVisitor = state.GetSerializedReferenceVisitor();
                 serializedReferenceVisitor.SetSerializedReference(serializedReferences);
-                PropertyContainer.Visit(ref container, serializedReferenceVisitor);
+                PropertyContainer.Accept(serializedReferenceVisitor, ref container);
             }
 
-            var visitor = parameters.RequiresThreadSafety || s_SharedJsonPropertyWriter.IsLocked ? new JsonPropertyWriter() : GetSharedJsonPropertyWriter();
+            var visitor = state.GetJsonPropertyWriter();
             
             visitor.SetWriter(writer);
             visitor.SetSerializedType(parameters.SerializedType);
@@ -96,13 +66,10 @@ namespace Unity.Serialization.Json
             visitor.SetGlobalMigrations(GetGlobalMigrations());
             visitor.SetUserDefinedMigration(parameters.UserDefinedMigrations);
             visitor.SetSerializedReferences(serializedReferences);
-            visitor.SetMinified(parameters.Minified);
-            visitor.SetSimplified(parameters.Simplified);
             
-            using (visitor.Lock()) PropertyContainer.Visit(ref container, visitor);
+            using (visitor.Lock()) PropertyContainer.Accept(visitor, ref container);
 
-            serializedReferences?.Clear();
+            if (null == parameters.State && null != serializedReferences) serializedReferences.Clear();
         }
     }
 }
-#endif

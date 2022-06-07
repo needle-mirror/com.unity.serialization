@@ -1,4 +1,3 @@
-#if !NET_DOTS
 using System.IO;
 using NUnit.Framework;
 using Unity.Properties;
@@ -9,7 +8,7 @@ namespace Unity.Serialization.Tests
     partial class SerializationTestFixture
     {
         [GeneratePropertyBag]
-        class ClassWithSystemIOTypes
+        internal class ClassWithSystemIOTypes
         {
             public FileInfo FieldInfo;
             public DirectoryInfo DirectoryInfo;
@@ -42,4 +41,3 @@ namespace Unity.Serialization.Tests
         }
     }
 }
-#endif

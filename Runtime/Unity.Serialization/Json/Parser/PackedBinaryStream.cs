@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -7,18 +8,39 @@ using Unity.Jobs;
 
 namespace Unity.Serialization.Json
 {
-    struct Handle
+    [StructLayout(LayoutKind.Sequential)]
+    struct Handle : IEquatable<Handle>
     {
         public int Index;
         public int Version;
+
+        public bool Equals(Handle other)
+        {
+            return Index == other.Index && Version == other.Version;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is Handle other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                return (Index * 397) ^ Version;
+            }
+        }
     }
 
+    [StructLayout(LayoutKind.Sequential)]
     struct HandleData
     {
         public int DataIndex;
         public int DataVersion;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
     struct BinaryToken
     {
         public TokenType Type;
@@ -33,6 +55,7 @@ namespace Unity.Serialization.Json
         }
     }
 
+    [StructLayout(LayoutKind.Sequential)]
     unsafe struct PackedBinaryStreamData
     {
         public BinaryToken* Tokens;
@@ -98,7 +121,7 @@ namespace Unity.Serialization.Json
     /// <remarks>
     /// The contents of the stream are not actualized and instead remain as a string of characters.
     /// </remarks>
-    public unsafe struct PackedBinaryStream : IDisposable
+    public unsafe struct PackedBinaryStream : IDisposable, IEquatable<PackedBinaryStream>
     {
         /// <summary>
         /// All input characters were consumes and all tokens were generated.
@@ -138,6 +161,7 @@ namespace Unity.Serialization.Json
             }
         }
 
+        [StructLayout(LayoutKind.Sequential)]
         struct DiscardCompletedJobOutput
         {
             public int Result;
@@ -543,13 +567,7 @@ namespace Unity.Serialization.Json
                 .Run();
 
             if (output.Result == k_ResultStackOverflow)
-            {
-#if !NET_DOTS
                 throw new StackOverflowException();
-#else
-                throw new Exception("Stack Overflow");
-#endif
-            }
 
             m_Data->TokenNextIndex = output.TokenNextIndex;
             m_Data->TokenParentIndex = output.TokenParentIndex;
@@ -577,6 +595,27 @@ namespace Unity.Serialization.Json
             UnsafeUtility.MemCpy(tmp, buffer, fromLength * sizeof(T));
             UnsafeUtility.Free(buffer, label);
             return tmp;
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(PackedBinaryStream other)
+        {
+            return m_Data == other.m_Data;
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return obj is PackedBinaryStream other && Equals(other);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                return ((int) m_Label * 397) ^ unchecked((int) (long) m_Data);
+            }
         }
     }
 }

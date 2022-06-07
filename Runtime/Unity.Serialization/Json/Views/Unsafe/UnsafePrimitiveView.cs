@@ -148,7 +148,6 @@ namespace Unity.Serialization.Json.Unsafe
             return value;
         }
 
-#if !NET_DOTS
         /// <summary>
         /// Reinterprets the primitive as a double.
         /// </summary>
@@ -160,7 +159,6 @@ namespace Unity.Serialization.Json.Unsafe
         {
             return double.Parse(AsString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture);
         }
-#endif
 
         /// <summary>
         /// Reinterprets the primitive as a bool.

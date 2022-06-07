@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using Unity.Properties;
-using Unity.Serialization.Json.Adapters;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -9,17 +8,17 @@ namespace Unity.Serialization.Json.Tests
 {
     partial class JsonSerializationTests
     {
-        class Migration
+        internal class Migration
         {
             [GeneratePropertyBag]
-            struct TestData
+            internal struct TestData
             {
                 public int Int32Field;
                 public NestedStruct NestedStruct;
             }
 
             [GeneratePropertyBag]
-            struct NestedStruct
+            internal struct NestedStruct
             {
                 public float Float32Field;
                 public string StringField;
@@ -40,7 +39,7 @@ namespace Unity.Serialization.Json.Tests
                 int IJsonMigration<TestData>.Version => m_CurrentVersion;
                 public int SerializedVersion { get; private set; }
 
-                TestData IJsonMigration<TestData>.Migrate(JsonMigrationContext context)
+                TestData IJsonMigration<TestData>.Migrate(in JsonMigrationContext context)
                 {
                     SerializedVersion = context.SerializedVersion;
                     DidTrigger = true;
@@ -52,7 +51,7 @@ namespace Unity.Serialization.Json.Tests
             {
                 int IJsonMigration<TestData>.Version => 1;
 
-                TestData IJsonMigration<TestData>.Migrate(JsonMigrationContext context)
+                TestData IJsonMigration<TestData>.Migrate(in JsonMigrationContext context)
                 {
                     // Transfer the default data
                     var value = context.Read<TestData>(context.SerializedObject);
@@ -187,7 +186,7 @@ namespace Unity.Serialization.Json.Tests
             /// [VERSION 2] (current) - We decided to re-work the position field in to a nested transform struct. We also added health.
             /// </summary>
             [GeneratePropertyBag]
-            class Player
+            internal class Player
             {
                 public string Name;
                 public int Health;
@@ -195,13 +194,13 @@ namespace Unity.Serialization.Json.Tests
             }
 
             [GeneratePropertyBag]
-            class TransformData
+            internal class TransformData
             {
                 public Position Position;
             }
 
             [GeneratePropertyBag]
-            struct Position
+            internal struct Position
             {
                 public int X;
                 public int Y;
@@ -215,7 +214,7 @@ namespace Unity.Serialization.Json.Tests
                 /// </summary>
                 int IJsonMigration<Player>.Version => 2;
 
-                Player IJsonMigration<Player>.Migrate(JsonMigrationContext context)
+                Player IJsonMigration<Player>.Migrate(in JsonMigrationContext context)
                 {
                     var serializedVersion = context.SerializedVersion;
                     var serializedObject = context.SerializedObject;
@@ -293,20 +292,20 @@ namespace Unity.Serialization.Json.Tests
             }
 
 #pragma warning disable 649
-            interface IBase
+            internal interface IBase
             {
                 
             }
             
             [GeneratePropertyBag]
-            class ConcreteA : IBase
+            internal class ConcreteA : IBase
             {
                 public int value;
                 public int a;
             }
 
             [GeneratePropertyBag]
-            class ConcreteB : IBase
+            internal class ConcreteB : IBase
             {
                 public int value;
                 public int b;
@@ -314,16 +313,16 @@ namespace Unity.Serialization.Json.Tests
 #pragma warning restore 649
             
             [GeneratePropertyBag]
-            class ClassWithInterface
+            internal class ClassWithInterface
             {
                 public IBase Value;
             }
             
-            class InterfaceMigration : Adapters.Contravariant.IJsonMigration<IBase>
+            class InterfaceMigration : IContravariantJsonMigration<IBase>
             {
                 public int Version => 1;
                 
-                public object Migrate(JsonMigrationContext context)
+                public object Migrate(in JsonMigrationContext context)
                 {
                     var readAsInterface = context.Read<IBase>(context.SerializedObject);
                     Assert.That(readAsInterface, Is.InstanceOf(typeof(ConcreteA)));

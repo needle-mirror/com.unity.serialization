@@ -1,12 +1,11 @@
-#if !NET_DOTS
-namespace Unity.Serialization.Json.Adapters
+namespace Unity.Serialization.Json
 {
     /// <summary>
     /// Base interface for json adapters.
     /// </summary>
     public interface IJsonAdapter
     {
-        
+
     }
 
     /// <summary>
@@ -18,40 +17,36 @@ namespace Unity.Serialization.Json.Adapters
         /// <summary>
         /// Invoked during serialization to handle writing out the specified <typeparamref name="TValue"/>.
         /// </summary>
-        /// <param name="writer">The stream to write to.</param>
+        /// <param name="context">The current serialization context.</param>
         /// <param name="value">The value to write.</param>
-        void Serialize(JsonStringBuffer writer, TValue value);
-        
+        void Serialize(in JsonSerializationContext<TValue> context, TValue value);
+
         /// <summary>
         /// Invoked during deserialization to handle reading the specified <typeparamref name="TValue"/>.
         /// </summary>
-        /// <param name="view">The view to read from.</param>
+        /// <param name="context">The current de-serialization context.</param>
         /// <returns>The deserialized value.</returns>
-        TValue Deserialize(SerializedValueView view);
+        TValue Deserialize(in JsonDeserializationContext<TValue> context);
     }
 
-    namespace Contravariant
+    /// <summary>
+    /// Implement this interface to override serialization and deserialization behaviour for a given type.
+    /// </summary>
+    /// <typeparam name="TValue">The type to override serialization for.</typeparam>
+    public interface IContravariantJsonAdapter<in TValue> : IJsonAdapter
     {
         /// <summary>
-        /// Implement this interface to override serialization and deserialization behaviour for a given type.
+        /// Invoked during serialization to handle writing out the specified <typeparamref name="TValue"/>.
         /// </summary>
-        /// <typeparam name="TValue">The type to override serialization for.</typeparam>
-        public interface IJsonAdapter<in TValue> : IJsonAdapter
-        {
-            /// <summary>
-            /// Invoked during serialization to handle writing out the specified <typeparamref name="TValue"/>.
-            /// </summary>
-            /// <param name="writer">The stream to write to.</param>
-            /// <param name="value">The value to write.</param>
-            void Serialize(JsonStringBuffer writer, TValue value);
-            
-            /// <summary>
-            /// Invoked during deserialization to handle reading the specified <typeparamref name="TValue"/>.
-            /// </summary>
-            /// <param name="view">The view to read from.</param>
-            /// <returns>The deserialized value.</returns>
-            object Deserialize(SerializedValueView view);
-        }
+        /// <param name="context">The current serialization context.</param>
+        /// <param name="value">The value to write.</param>
+        void Serialize(IJsonSerializationContext context, TValue value);
+
+        /// <summary>
+        /// Invoked during deserialization to handle reading the specified <typeparamref name="TValue"/>.
+        /// </summary>
+        /// <param name="context">The current de-serialization context.</param>
+        /// <returns>The deserialized value.</returns>
+        object Deserialize(IJsonDeserializationContext context);
     }
 }
-#endif

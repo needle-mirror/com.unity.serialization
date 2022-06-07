@@ -1,7 +1,5 @@
-#if !NET_DOTS
 using System.Collections.Generic;
 using Unity.Properties;
-using Unity.Properties.Internal;
 
 namespace Unity.Serialization
 {
@@ -53,7 +51,7 @@ namespace Unity.Serialization
         /// <typeparam name="T">The value type.</typeparam>
         internal void AddDeserializedReference<T>(int id, T value)
         {
-            if (!RuntimeTypeInfoCache<T>.IsValueType)
+            if (!TypeTraits<T>.IsValueType)
             {
                 m_DeserializationIndex[id] = value;
             }
@@ -66,7 +64,7 @@ namespace Unity.Serialization
         /// <typeparam name="T">The value type.</typeparam>
         internal void AddDeserializedReference<T>(T value)
         {
-            if (!RuntimeTypeInfoCache<T>.IsValueType)
+            if (!TypeTraits<T>.IsValueType)
             {
                 m_DeserializationIndex[m_DeserializationIndex.Count] = value;
             }
@@ -124,23 +122,15 @@ namespace Unity.Serialization
 
         void IPropertyBagVisitor.Visit<TContainer>(IPropertyBag<TContainer> properties, ref TContainer container)
         {
-            if (properties is IPropertyList<TContainer> propertyList)
-            {
-                foreach (var property in propertyList.GetProperties(ref container))
-                    ((IPropertyAccept<TContainer>) property).Accept(this, ref container);
-            }
-            else
-            {
-                foreach (var property in properties.GetProperties(ref container))
-                    ((IPropertyAccept<TContainer>) property).Accept(this, ref container);
-            }
+            foreach (var property in properties.GetProperties(ref container))
+                property.Accept(this, ref container);
         }
 
         void IPropertyVisitor.Visit<TContainer, TValue>(Property<TContainer, TValue> property, ref TContainer container)
         {
             var value = property.GetValue(ref container);
             
-            var isReferenceType = !RuntimeTypeInfoCache<TValue>.IsValueType;
+            var isReferenceType = !TypeTraits<TValue>.IsValueType;
 
             if (isReferenceType)
             {
@@ -156,7 +146,7 @@ namespace Unity.Serialization
 
                 if (m_SerializedReferences.SetVisited(reference))
                 {
-                    PropertyContainer.Visit(ref value, this, out _);
+                    PropertyContainer.TryAccept(this, ref value);
                 }
                 else
                 {
@@ -165,9 +155,8 @@ namespace Unity.Serialization
             }
             else
             {
-                PropertyContainer.Visit(ref value, this, out _);
+                PropertyContainer.TryAccept(this, ref value);
             }
         }
     }
 }
-#endif

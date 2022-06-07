@@ -1,10 +1,85 @@
-#if !NET_DOTS
 using System;
 using System.Collections.Generic;
-using Unity.Serialization.Json.Adapters;
 
 namespace Unity.Serialization.Json
 {
+    /// <summary>
+    /// This class is used to store state between multiple serialization calls.
+    /// By passing this to <see cref="JsonSerializationParameters"/> will allow visitors and serialized references to be re-used.
+    /// </summary>
+    class JsonSerializationState
+    {
+        JsonPropertyWriter m_JsonPropertyWriter;
+        JsonPropertyReader m_JsonPropertyReader;
+        SerializedReferences m_SerializedReferences;
+        SerializedReferenceVisitor m_SerializedReferenceVisitor;
+        List<DeserializationEvent> m_DeserializationEvents;
+
+        /// <summary>
+        /// Returns true if the given state is in use by either serialization or de-serialization.
+        /// </summary>
+        internal bool IsLocked => (m_JsonPropertyWriter != null && m_JsonPropertyWriter.IsLocked) || (m_JsonPropertyReader != null && m_JsonPropertyReader.IsLocked);
+        
+        /// <summary>
+        /// Gets the shared <see cref="JsonPropertyWriter"/>.
+        /// </summary>
+        /// <returns>The <see cref="JsonPropertyWriter"/>.</returns>
+        internal JsonPropertyWriter GetJsonPropertyWriter()
+        { 
+            if (null != m_JsonPropertyWriter) 
+                return m_JsonPropertyWriter.IsLocked ? new JsonPropertyWriter() : m_JsonPropertyWriter;
+            
+            m_JsonPropertyWriter = new JsonPropertyWriter();
+            return m_JsonPropertyWriter;
+        }
+        
+        /// <summary>
+        /// Gets the shared <see cref="JsonPropertyReader"/>.
+        /// </summary>
+        /// <returns>The <see cref="JsonPropertyReader"/>.</returns>
+        internal JsonPropertyReader GetJsonPropertyReader()
+        {
+            if (null != m_JsonPropertyReader) 
+                return m_JsonPropertyReader.IsLocked ? new JsonPropertyReader() : m_JsonPropertyReader;
+            
+            m_JsonPropertyReader = new JsonPropertyReader();
+            return m_JsonPropertyReader;
+        }
+
+        /// <summary>
+        /// Gets the shared <see cref="SerializedReferences"/>.
+        /// </summary>
+        /// <returns>The <see cref="SerializedReferences"/>.</returns>
+        internal SerializedReferences GetSerializedReferences()
+            => m_SerializedReferences ?? (m_SerializedReferences = new SerializedReferences());
+        
+        /// <summary>
+        /// Gets the shared <see cref="SerializedReferenceVisitor"/>.
+        /// </summary>
+        /// <returns>The <see cref="SerializedReferenceVisitor"/>.</returns>
+        internal SerializedReferenceVisitor GetSerializedReferenceVisitor()
+            => m_SerializedReferenceVisitor ?? (m_SerializedReferenceVisitor = new SerializedReferenceVisitor());
+
+        /// <summary>
+        /// Gets the shared <see cref="List{DeserializationEvent}"/>.
+        /// </summary>
+        /// <returns>The <see cref="List{DeserializationEvent}"/>.</returns>
+        internal List<DeserializationEvent> GetDeserializationEvents()
+            => m_DeserializationEvents ?? (m_DeserializationEvents = new List<DeserializationEvent>());
+
+        /// <summary>
+        /// Clears the serialized references state.
+        /// </summary>
+        internal void ClearSerializedReferences()
+            => m_SerializedReferences?.Clear();
+        
+        /// <summary>
+        /// Clears the deserialization events state.
+        /// </summary>
+        internal void ClearDeserializationEvents()
+            => m_DeserializationEvents?.Clear();
+    }
+    
     /// <summary>
     /// Custom parameters to use for json serialization or deserialization.
     /// </summary>
@@ -70,6 +145,11 @@ namespace Unity.Serialization.Json
         /// Use this parameter to write simplified json.
         /// </summary>
         public bool Simplified { get; set; }
+        
+        /// <summary>
+        /// Sets the state object for serialization. This can be used to share resources across multiple calls to serialize and deserialize.
+        /// </summary>
+        internal JsonSerializationState State { get; set; }
     }
     
     /// <summary>
@@ -79,18 +159,17 @@ namespace Unity.Serialization.Json
     {
         static readonly List<IJsonAdapter> s_Adapters = new List<IJsonAdapter>();
         static readonly List<IJsonMigration> s_Migrations = new List<IJsonMigration>();
-        static readonly SerializedReferenceVisitor s_SharedSerializedReferenceVisitor = new SerializedReferenceVisitor();
-        static readonly SerializedReferences s_SharedSerializedReferences = new SerializedReferences();
-
-        static SerializedReferenceVisitor GetSharedSerializedReferenceVisitor()
-        {
-            return s_SharedSerializedReferenceVisitor;
-        }
+        static readonly JsonSerializationState s_SharedState = new JsonSerializationState();
         
-        static SerializedReferences GetSharedSerializedReferences()
+        static JsonSerializationState GetSharedState()
         {
-            s_SharedSerializedReferences.Clear();
-            return s_SharedSerializedReferences;
+            // The current state is in use by the current stack. We must return a new instance to avoid trashing the serialized references and deserialization events.
+            if (s_SharedState.IsLocked)
+                return new JsonSerializationState();
+            
+            s_SharedState.ClearSerializedReferences();
+            s_SharedState.ClearDeserializationEvents();
+            return s_SharedState;
         }
 
         /// <summary>
@@ -158,4 +237,3 @@ namespace Unity.Serialization.Json
         static List<IJsonMigration> GetGlobalMigrations() => s_Migrations;
     }
 }
-#endif

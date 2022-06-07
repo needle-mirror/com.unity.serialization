@@ -13,8 +13,8 @@ namespace Unity.Serialization.Tests
             var dst = SerializeAndDeserialize(src);
             
             Assert.That(dst, Is.Not.SameAs(src));
-            Assert.That(dst.Path.PartsCount, Is.EqualTo(src.Path.PartsCount));
-            for (var i = 0; i < src.Path.PartsCount; ++i)
+            Assert.That(dst.Path.Length, Is.EqualTo(src.Path.Length));
+            for (var i = 0; i < src.Path.Length; ++i)
             {
                 Assert.That(src.Path[i], Is.EqualTo(dst.Path[i]));
             }

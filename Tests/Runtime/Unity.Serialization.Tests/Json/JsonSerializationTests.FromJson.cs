@@ -13,7 +13,7 @@ namespace Unity.Serialization.Json.Tests
     partial class JsonSerializationTests
     {
         [GeneratePropertyBag]
-        class TestClassWithPrimitives
+        internal class TestClassWithPrimitives
         {
             public int A;
             public float B;
@@ -21,25 +21,25 @@ namespace Unity.Serialization.Json.Tests
         }
 
         [GeneratePropertyBag]
-        class TestClassWithArray
+        internal class TestClassWithArray
         {
             public int[] ArrayInt;
         }
 
         [GeneratePropertyBag]
-        class TestClassWithArrayArray
+        internal class TestClassWithArrayArray
         {
             public int[][] ArrayArrayInt;
         }
 
         [GeneratePropertyBag]
-        class TestClassWithList
+        internal class TestClassWithList
         {
             public List<int> ListInt;
         }
 
         [GeneratePropertyBag]
-        class TestClassWithDictionary
+        internal class TestClassWithDictionary
         {
             public Dictionary<string, int> DictionaryStringInt;
             public Dictionary<string, object> DictionaryStringObject;

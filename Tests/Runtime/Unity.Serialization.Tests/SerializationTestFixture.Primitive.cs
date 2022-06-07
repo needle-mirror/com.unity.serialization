@@ -10,7 +10,8 @@ namespace Unity.Serialization.Tests
         {
             var src = new ClassWithPrimitives
             {
-                Int32Value = 42
+                Int32Value = 42,
+                CharValue = '\0'
             };
 
             var dst = SerializeAndDeserialize(src);
@@ -91,6 +92,31 @@ namespace Unity.Serialization.Tests
             
             Assert.That(dst, Is.Not.SameAs(src));
             Assert.That(dst.Float32Value, Is.EqualTo(src.Float32Value));
+        }
+        
+        [Test]
+        public void ClassWithCharValue_CanBeSerializedAndDeserialized()
+        {
+            void TestChar(char c)
+            {
+                var src = new ClassWithPrimitives
+                {
+                    CharValue = c
+                };
+
+                var dst = SerializeAndDeserialize(src);
+            
+                Assert.That(dst, Is.Not.SameAs(src));
+                Assert.That(dst.CharValue, Is.EqualTo(src.CharValue));
+            }
+
+            TestChar('a');
+            TestChar('0');
+            TestChar('/');
+            TestChar('\0');
+            TestChar('\t');
+            TestChar('\n');
+            TestChar('\b');
         }
     }
 }

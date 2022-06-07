@@ -1,12 +1,28 @@
-﻿#if !NET_DOTS
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Unity.Properties;
-using Unity.Properties.Internal;
-using Unity.Serialization.Json.Adapters;
 
 namespace Unity.Serialization.Json
 {
+    class DictionaryElementProperty<TDictionary, TKey, TValue> : Property<TDictionary, TValue>
+        where TDictionary : IDictionary<TKey, TValue>
+    {
+        public override string Name => Key.ToString();
+        public override bool IsReadOnly => false;
+
+        public override TValue GetValue(ref TDictionary container)
+        {
+            return container[Key];
+        }
+
+        public override void SetValue(ref TDictionary container, TValue value)
+        {
+            container[Key] = value;
+        }
+
+        public TKey Key { get; internal set; }
+    }
+    
     /// <summary>
     /// A visitor that traverses a property container and outputs a JSON string.
     /// </summary>
@@ -77,17 +93,6 @@ namespace Unity.Serialization.Json
         }
 
         /// <summary>
-        /// Constants for styling and special keys.
-        /// </summary>
-        static class Style
-        {
-            /// <summary>
-            /// Spaces for indentation
-            /// </summary>
-            public const int Space = 4;
-        }
-        
-        /// <summary>
         /// Shared property used to write the serialized type metadata.
         /// </summary>
         static readonly SerializedIdProperty s_SerializedIdProperty = new SerializedIdProperty();
@@ -102,25 +107,20 @@ namespace Unity.Serialization.Json
         /// </summary>
         static readonly SerializedVersionProperty s_SerializedVersionProperty = new SerializedVersionProperty();
 
-        /// <summary>
-        /// Gets or sets the current indent level.
-        /// </summary>
-        int Indent { get; set; }
-
         JsonWriter m_Writer;
-        Type m_RootType;
+        Type m_SerializedType;
         bool m_DisableRootAdapters;
         JsonAdapterCollection m_Adapters;
         JsonMigrationCollection m_Migrations;
         SerializedReferences m_SerializedReferences;
-        bool m_Minified;
-        bool m_Simplified;
+
+        public JsonWriter Writer => m_Writer;
         
         public void SetWriter(JsonWriter writer)
             => m_Writer = writer;
 
         public void SetSerializedType(Type type) 
-            => m_RootType = type;
+            => m_SerializedType = type;
         
         public void SetDisableRootAdapters(bool disableRootAdapters) 
             => m_DisableRootAdapters = disableRootAdapters;
@@ -140,12 +140,6 @@ namespace Unity.Serialization.Json
         public void SetSerializedReferences(SerializedReferences serializedReferences)
             => m_SerializedReferences = serializedReferences;
         
-        public void SetMinified(bool minified)
-            => m_Minified = minified;
-        
-        public void SetSimplified(bool simplified)
-            => m_Simplified = simplified;
-        
         public JsonPropertyWriter()
         {
             m_Adapters.InternalAdapter = new JsonAdapter();
@@ -160,7 +154,7 @@ namespace Unity.Serialization.Json
             
             var metadata = default(SerializedContainerMetadata);
 
-            if (!(RuntimeTypeInfoCache<TContainer>.IsValueType || container.GetType().IsValueType))
+            if (!(TypeTraits<TContainer>.IsValueType || container.GetType().IsValueType))
             {
                 var reference = container as object;
                 
@@ -184,9 +178,7 @@ namespace Unity.Serialization.Json
                 metadata.SerializedId = -1;
             }
             
-            // This is a very common case. At serialize time we are serializing something that is polymorphic or an object
-            // However at deserialize time the user will provide the System.Type, we can avoid writing out the fully qualified type name in this case.
-            var isRootAndTypeWasGiven = Property is IPropertyWrapper && null != m_RootType;
+            var isRootAndTypeWasGiven = Property is IPropertyWrapper && null != m_SerializedType;
             var declaredValueType = Property.DeclaredValueType();
             
             // We need to write out the serialize type name in any of the following cases are FALSE:
@@ -259,29 +251,13 @@ namespace Unity.Serialization.Json
                 WriteSerializedContainerMetadata(ref container, metadata, ref count);
             }
 
-            if (properties is IPropertyList<TContainer> propertyList)
+            foreach (var property in properties.GetProperties(ref container))
             {
-                // no boxing
-                foreach (var property in propertyList.GetProperties(ref container))
-                {
-                    if (property.HasAttribute<NonSerializedAttribute>() || property.HasAttribute<DontSerializeAttribute>())
-                        continue;
-                    
-                    using (CreatePropertyScope(property))
-                        ((IPropertyAccept<TContainer>) property).Accept(this, ref container);
-                }
-            }
-            else
-            {
-                // boxing
-                foreach (var property in properties.GetProperties(ref container))
-                {
-                    if (property.HasAttribute<NonSerializedAttribute>() || property.HasAttribute<DontSerializeAttribute>())
-                        continue;
-                    
-                    using (CreatePropertyScope(property))
-                        ((IPropertyAccept<TContainer>) property).Accept(this, ref container);
-                }
+                if (PropertyChecks.IsPropertyExcludedFromSerialization(property))
+                    continue;
+                
+                using (CreatePropertyScope(property)) 
+                    property.Accept(this, ref container);
             }
 
             if (!isRootContainer)
@@ -289,7 +265,7 @@ namespace Unity.Serialization.Json
                 m_Writer.WriteEndObject();
             }
         }
-
+        
         void ICollectionPropertyBagVisitor.Visit<TCollection, TElement>(ICollectionPropertyBag<TCollection, TElement> properties, ref TCollection container)
         {
             var metadata = GetSerializedContainerMetadata(ref container);
@@ -314,7 +290,7 @@ namespace Unity.Serialization.Json
                 foreach (var property in properties.GetProperties(ref container))
                 {
                     using (CreatePropertyScope(property))
-                        ((IPropertyAccept<TCollection>) property).Accept(this, ref container);
+                        property.Accept(this, ref container);
                 }
             }
 
@@ -348,7 +324,7 @@ namespace Unity.Serialization.Json
                 foreach (var property in properties.GetProperties(ref container))
                 {
                     using (CreatePropertyScope(property))
-                        ((IPropertyAccept<TList>) property).Accept(this, ref container);
+                        property.Accept(this, ref container);
                 }
             }
             
@@ -414,46 +390,105 @@ namespace Unity.Serialization.Json
             var value = property.GetValue(ref container);
             WriteValue(ref value, isRootProperty);
         }
-
-        void WriteValue<TValue>(ref TValue value, bool isRoot)
+        
+        internal void WriteValue<TValue>(ref TValue value, bool isRoot = false)
         {
-            var runAdapters = !(isRoot && m_DisableRootAdapters);
-            
-            if (runAdapters && m_Adapters.TrySerialize(m_Writer, ref value))
+            // Special handling of primitive types.
+            if (TypeTraits<TValue>.IsPrimitiveOrString)
+            {
+                // This would be nice to optimize and avoid the conversion all together.
+                (m_Adapters.InternalAdapter as IJsonAdapter<TValue>).Serialize(new JsonSerializationContext<TValue>(this, default, value, isRoot), value);
                 return;
+            }
+            
+            if (!(isRoot && m_DisableRootAdapters))
+                WriteValueWithAdapters(value, m_Adapters.GetEnumerator(), isRoot);
+            else
+                WriteValueWithoutAdapters(value, isRoot);
+        }
 
-            if (RuntimeTypeInfoCache<TValue>.IsEnum)
+        internal void WriteValueWithAdapters<TValue>(TValue value, JsonAdapterCollection.Enumerator adapters, bool isRoot)
+        {
+            while (adapters.MoveNext())
+            {
+                switch (adapters.Current)
+                {
+                    case IJsonAdapter<TValue> typed:
+                        typed.Serialize(new JsonSerializationContext<TValue>(this, adapters, value, isRoot), value);
+                        return;
+                    case IContravariantJsonAdapter<TValue> typedContravariant:
+                        // NOTE: Boxing
+                        typedContravariant.Serialize((IJsonSerializationContext) new JsonSerializationContext<TValue>(this, adapters, value, isRoot), value);
+                        return;
+                }
+            }
+            
+            // Do the default thing.
+            WriteValueWithoutAdapters(value, isRoot);
+        }
+
+        internal void WriteValueWithoutAdapters<TValue>(TValue value, bool isRoot)
+        {
+            if (!TypeTraits<TValue>.IsValueType)
+            {            
+                if (!(isRoot && m_DisableRootAdapters))
+                {
+                    if (value is UnityEngine.Object)
+                    {
+                        throw new NotSupportedException("JsonSerialization does not support polymorphic unity object references.");
+                    }
+                }
+            }
+            
+#if UNITY_EDITOR
+            if (TypeTraits<TValue>.IsLazyLoadReference)
+            {
+                var instanceID = PropertyContainer.GetValue<TValue, int>(ref value, "m_InstanceID");
+                Writer.WriteValue(UnityEditor.GlobalObjectId.GetGlobalObjectIdSlow(instanceID).ToString());
+                return;
+            }
+#endif
+            
+            if (TypeTraits<TValue>.IsEnum)
             {
                 WritePrimitiveBoxed(m_Writer, value, Enum.GetUnderlyingType(typeof(TValue)));
                 return;
             }
             
-            if (RuntimeTypeInfoCache<TValue>.CanBeNull && EqualityComparer<TValue>.Default.Equals(value, default) )
+            if (TypeTraits<TValue>.CanBeNull && EqualityComparer<TValue>.Default.Equals(value, default))
             {
                 m_Writer.WriteNull();
                 return;
             }
+
+            if (TypeTraits<TValue>.IsMultidimensionalArray)
+            {
+                // No support for multidimensional arrays yet. This can be done using adapters for now.
+                m_Writer.WriteNull();
+                return;
+            }
             
-            if (RuntimeTypeInfoCache<TValue>.IsNullable)
+            if (TypeTraits<TValue>.IsNullable)
             {
                 var underlyingType = Nullable.GetUnderlyingType(typeof(TValue));
 
-                if (RuntimeTypeInfoCache.IsContainerType(underlyingType))
+                if (TypeTraits.IsContainer(underlyingType))
                 {
+                    // Unpack Nullable<T> as T
                     var underlyingValue = System.Convert.ChangeType(value, underlyingType);
                     
-                    if (!PropertyContainer.Visit(ref underlyingValue, this, out var errorCode))
+                    if (!PropertyContainer.TryAccept(this, ref underlyingValue, out var errorCode))
                     {
                         switch (errorCode)
                         {
-                            case VisitErrorCode.NullContainer:
+                            case VisitReturnCode.NullContainer:
                                 throw new ArgumentNullException(nameof(value));
-                            case VisitErrorCode.InvalidContainerType:
+                            case VisitReturnCode.InvalidContainerType:
                                 throw new InvalidContainerTypeException(value.GetType());
-                            case VisitErrorCode.MissingPropertyBag:
+                            case VisitReturnCode.MissingPropertyBag:
                                 throw new MissingPropertyBagException(value.GetType());
                             default:
-                                throw new Exception($"Unexpected {nameof(VisitErrorCode)}=[{errorCode}]");
+                                throw new Exception($"Unexpected {nameof(VisitReturnCode)}=[{errorCode}]");
                         }
                     }
                 }
@@ -465,36 +500,26 @@ namespace Unity.Serialization.Json
                 return;
             }
             
-            if (runAdapters && !RuntimeTypeInfoCache<TValue>.IsValueType)
-            {
-#if !UNITY_DOTSRUNTIME
-                if (value is UnityEngine.Object)
-                {
-                    throw new NotSupportedException("JsonSerialization does not support polymorphic unity object references.");
-                }
-#endif
-            }
-            
-            if (RuntimeTypeInfoCache<TValue>.IsObjectType && !RuntimeTypeInfoCache.IsContainerType(value.GetType()))
+            if (TypeTraits<TValue>.IsObject && !TypeTraits.IsContainer(value.GetType()))
             {
                 WritePrimitiveBoxed(m_Writer, value, value.GetType());
                 return;
             }
             
-            if (RuntimeTypeInfoCache<TValue>.IsContainerType)
+            if (TypeTraits<TValue>.IsContainer)
             {
-                if (!PropertyContainer.Visit(ref value, this, out var errorCode))
+                if (!PropertyContainer.TryAccept(this, ref value, out var errorCode))
                 {
                     switch (errorCode)
                     {
-                        case VisitErrorCode.NullContainer:
+                        case VisitReturnCode.NullContainer:
                             throw new ArgumentNullException(nameof(value));
-                        case VisitErrorCode.InvalidContainerType:
+                        case VisitReturnCode.InvalidContainerType:
                             throw new InvalidContainerTypeException(value.GetType());
-                        case VisitErrorCode.MissingPropertyBag:
+                        case VisitReturnCode.MissingPropertyBag:
                             throw new MissingPropertyBagException(value.GetType());
                         default:
-                            throw new Exception($"Unexpected {nameof(VisitErrorCode)}=[{errorCode}]");
+                            throw new Exception($"Unexpected {nameof(VisitReturnCode)}=[{errorCode}]");
                     }
                 }
                 return;
@@ -552,4 +577,3 @@ namespace Unity.Serialization.Json
         }
     }
 }
-#endif

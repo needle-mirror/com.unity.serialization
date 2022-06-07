@@ -1,4 +1,3 @@
-#if !NET_DOTS
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -183,4 +182,3 @@ namespace Unity.Serialization.Json
         }
     }
 }
-#endif

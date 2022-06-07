@@ -1,4 +1,3 @@
-#if !NET_DOTS
 using System;
 using Unity.Properties;
 
@@ -61,6 +60,21 @@ namespace Unity.Serialization
             error = string.Empty;
             return false;
         }
+
+        /// <summary>
+        /// Returns <see langword="true"/> if the property should be skipped during serialization and deserialization.
+        /// </summary>
+        /// <param name="property">The property to check.</param>
+        /// <returns><see langword="true"/> if the property should be skipped; <see langword="false"/> otherwise.</returns>
+        internal static bool IsPropertyExcludedFromSerialization(IProperty property)
+        {
+            if (property.HasAttribute<NonSerializedAttribute>())
+                return true;
+
+            if (property.HasAttribute<DontSerializeAttribute>())
+                return true;
+
+            return false;
+        }
     }
 }
-#endif

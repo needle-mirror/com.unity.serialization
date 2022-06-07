@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -443,6 +445,67 @@ color = { r = 1 g = 1 b = 1 a = 1 }
                 Assert.Throws<InvalidJsonException>(() =>
                 {
                     reader.Read(out var view);
+                });
+            }
+        }
+        
+        [Test]
+        public void SerializedObjectReader_Read_JsonWithInt32Root()
+        {
+            SetJson("10");
+
+            using (var reader = new SerializedObjectReader(m_Stream))
+            {
+                reader.Read(out var view);
+                Assert.That(view.Type, Is.EqualTo(TokenType.Primitive));
+                Assert.AreEqual(10, view.AsInt32());
+            }
+        }
+        
+        [Test]
+        public void SerializedObjectReader_Read_JsonWithFloat32Root()
+        {
+            SetJson("123.4");
+
+            using (var reader = new SerializedObjectReader(m_Stream))
+            {
+                reader.Read(out var view);
+                Assert.That(view.Type, Is.EqualTo(TokenType.Primitive));
+                Assert.AreEqual(123.4f, view.AsFloat());
+            }
+        }
+        
+        [Test]
+        public void SerializedObjectReader_Read_JsonWithBoolRoot()
+        {
+            SetJson("true");
+
+            using (var reader = new SerializedObjectReader(m_Stream))
+            {
+                reader.Read(out var view);
+                Assert.That(view.Type, Is.EqualTo(TokenType.Primitive));
+                Assert.AreEqual(true, view.AsBoolean());
+            }
+        }
+        
+        [Test]
+        public void SerializedObjectReader_ReadArray_ImplementsIList()
+        {
+            SetJson("[1,2,3,4,5]");
+
+            using (var reader = new SerializedObjectReader(m_Stream))
+            {
+                reader.Read(out var view);
+                Assert.That(view.Type, Is.EqualTo(TokenType.Array));
+
+                var list = view.AsArrayView() as IList<SerializedValueView>;
+                
+                Assert.That(list.Count, Is.EqualTo(5));
+                Assert.That(list[3].AsInt32(), Is.EqualTo(4));
+
+                Assert.Throws<NotSupportedException>(() =>
+                {
+                    list.Clear();
                 });
             }
         }

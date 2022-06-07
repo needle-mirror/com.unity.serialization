@@ -1,104 +1,101 @@
-#if !NET_DOTS
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections.LowLevel.Unsafe.NotBurstCompatible;
 
-namespace Unity.Serialization.Binary.Adapters
+namespace Unity.Serialization.Binary
 {
     unsafe partial class BinaryAdapter :
-        IBinaryAdapter<sbyte>, 
-        IBinaryAdapter<short>, 
-        IBinaryAdapter<int>,   
-        IBinaryAdapter<long>,  
-        IBinaryAdapter<byte>,  
+        IBinaryAdapter<sbyte>,
+        IBinaryAdapter<short>,
+        IBinaryAdapter<int>,
+        IBinaryAdapter<long>,
+        IBinaryAdapter<byte>,
         IBinaryAdapter<ushort>,
-        IBinaryAdapter<uint>,  
-        IBinaryAdapter<ulong>, 
-        IBinaryAdapter<float>, 
+        IBinaryAdapter<uint>,
+        IBinaryAdapter<ulong>,
+        IBinaryAdapter<float>,
         IBinaryAdapter<double>,
-        IBinaryAdapter<bool>,  
-        IBinaryAdapter<char>,  
+        IBinaryAdapter<bool>,
+        IBinaryAdapter<char>,
         IBinaryAdapter<string>
     {
-        void IBinaryAdapter<sbyte>.Serialize(UnsafeAppendBuffer* writer, sbyte value)
-            => writer->Add(value);
+        void IBinaryAdapter<sbyte>.Serialize(in BinarySerializationContext<sbyte> context, sbyte value)
+            => context.Writer->Add(value);
 
-        void IBinaryAdapter<short>.Serialize(UnsafeAppendBuffer* writer, short value)
-            => writer->Add(value);
+        void IBinaryAdapter<short>.Serialize(in BinarySerializationContext<short> context, short value)
+            => context.Writer->Add(value);
 
-        void IBinaryAdapter<int>.Serialize(UnsafeAppendBuffer* writer, int value)
-            => writer->Add(value);
+        void IBinaryAdapter<int>.Serialize(in BinarySerializationContext<int> context, int value)
+            => context.Writer->Add(value);
 
-        void IBinaryAdapter<long>.Serialize(UnsafeAppendBuffer* writer, long value)
-            => writer->Add(value);
+        void IBinaryAdapter<long>.Serialize(in BinarySerializationContext<long> context, long value)
+            => context.Writer->Add(value);
 
-        void IBinaryAdapter<byte>.Serialize(UnsafeAppendBuffer* writer, byte value)
-            => writer->Add(value);
+        void IBinaryAdapter<byte>.Serialize(in BinarySerializationContext<byte> context, byte value)
+            => context.Writer->Add(value);
 
-        void IBinaryAdapter<ushort>.Serialize(UnsafeAppendBuffer* writer, ushort value)
-            => writer->Add(value);
+        void IBinaryAdapter<ushort>.Serialize(in BinarySerializationContext<ushort> context, ushort value)
+            => context.Writer->Add(value);
 
-        void IBinaryAdapter<uint>.Serialize(UnsafeAppendBuffer* writer, uint value)
-            => writer->Add(value);
+        void IBinaryAdapter<uint>.Serialize(in BinarySerializationContext<uint> context, uint value)
+            => context.Writer->Add(value);
 
-        void IBinaryAdapter<ulong>.Serialize(UnsafeAppendBuffer* writer, ulong value)
-            => writer->Add(value);
+        void IBinaryAdapter<ulong>.Serialize(in BinarySerializationContext<ulong> context, ulong value)
+            => context.Writer->Add(value);
 
-        void IBinaryAdapter<float>.Serialize(UnsafeAppendBuffer* writer, float value)
-            => writer->Add(value);
+        void IBinaryAdapter<float>.Serialize(in BinarySerializationContext<float> context, float value)
+            => context.Writer->Add(value);
 
-        void IBinaryAdapter<double>.Serialize(UnsafeAppendBuffer* writer, double value)
-            => writer->Add(value);
+        void IBinaryAdapter<double>.Serialize(in BinarySerializationContext<double> context, double value)
+            => context.Writer->Add(value);
 
-        void IBinaryAdapter<bool>.Serialize(UnsafeAppendBuffer* writer, bool value)
-            => writer->Add((byte)(value ? 1 : 0));
+        void IBinaryAdapter<bool>.Serialize(in BinarySerializationContext<bool> context, bool value)
+            => context.Writer->Add((byte)(value ? 1 : 0));
 
-        void IBinaryAdapter<char>.Serialize(UnsafeAppendBuffer* writer, char value)
-            => writer->Add(value);
-        
-        void IBinaryAdapter<string>.Serialize(UnsafeAppendBuffer* writer, string value)
-            => writer->AddNBC(value);
+        void IBinaryAdapter<char>.Serialize(in BinarySerializationContext<char> context, char value)
+            => context.Writer->Add(value);
 
-        sbyte IBinaryAdapter<sbyte>.Deserialize(UnsafeAppendBuffer.Reader* reader)
-            => reader->ReadNext<sbyte>();
+        void IBinaryAdapter<string>.Serialize(in BinarySerializationContext<string> context, string value)
+            => context.Writer->AddNBC(value);
 
-        short IBinaryAdapter<short>.Deserialize(UnsafeAppendBuffer.Reader* reader)
-            => reader->ReadNext<short>();
+        sbyte IBinaryAdapter<sbyte>.Deserialize(in BinaryDeserializationContext<sbyte> context)
+            => context.Reader->ReadNext<sbyte>();
 
-        int IBinaryAdapter<int>.Deserialize(UnsafeAppendBuffer.Reader* reader)
-            => reader->ReadNext<int>();
+        short IBinaryAdapter<short>.Deserialize(in BinaryDeserializationContext<short> context)
+            => context.Reader->ReadNext<short>();
 
-        long IBinaryAdapter<long>.Deserialize(UnsafeAppendBuffer.Reader* reader)
-            => reader->ReadNext<long>();
+        int IBinaryAdapter<int>.Deserialize(in BinaryDeserializationContext<int> context)
+            => context.Reader->ReadNext<int>();
 
-        byte IBinaryAdapter<byte>.Deserialize(UnsafeAppendBuffer.Reader* reader)
-            => reader->ReadNext<byte>();
+        long IBinaryAdapter<long>.Deserialize(in BinaryDeserializationContext<long> context)
+            => context.Reader->ReadNext<long>();
 
-        ushort IBinaryAdapter<ushort>.Deserialize(UnsafeAppendBuffer.Reader* reader)
-            => reader->ReadNext<ushort>();
+        byte IBinaryAdapter<byte>.Deserialize(in BinaryDeserializationContext<byte> context)
+            => context.Reader->ReadNext<byte>();
 
-        uint IBinaryAdapter<uint>.Deserialize(UnsafeAppendBuffer.Reader* reader)
-            => reader->ReadNext<uint>();
+        ushort IBinaryAdapter<ushort>.Deserialize(in BinaryDeserializationContext<ushort> context)
+            => context.Reader->ReadNext<ushort>();
 
-        ulong IBinaryAdapter<ulong>.Deserialize(UnsafeAppendBuffer.Reader* reader)
-            => reader->ReadNext<ulong>();
+        uint IBinaryAdapter<uint>.Deserialize(in BinaryDeserializationContext<uint> context)
+            => context.Reader->ReadNext<uint>();
 
-        float IBinaryAdapter<float>.Deserialize(UnsafeAppendBuffer.Reader* reader)
-            => reader->ReadNext<float>();
+        ulong IBinaryAdapter<ulong>.Deserialize(in BinaryDeserializationContext<ulong> context)
+            => context.Reader->ReadNext<ulong>();
 
-        double IBinaryAdapter<double>.Deserialize(UnsafeAppendBuffer.Reader* reader)
-            => reader->ReadNext<double>();
+        float IBinaryAdapter<float>.Deserialize(in BinaryDeserializationContext<float> context)
+            => context.Reader->ReadNext<float>();
 
-        bool IBinaryAdapter<bool>.Deserialize(UnsafeAppendBuffer.Reader* reader)
-            => reader->ReadNext<byte>() == 1;
+        double IBinaryAdapter<double>.Deserialize(in BinaryDeserializationContext<double> context)
+            => context.Reader->ReadNext<double>();
 
-        char IBinaryAdapter<char>.Deserialize(UnsafeAppendBuffer.Reader* reader)
-            => reader->ReadNext<char>();
+        bool IBinaryAdapter<bool>.Deserialize(in BinaryDeserializationContext<bool> context)
+            => context.Reader->ReadNext<byte>() == 1;
 
-        string IBinaryAdapter<string>.Deserialize(UnsafeAppendBuffer.Reader* reader)
+        char IBinaryAdapter<char>.Deserialize(in BinaryDeserializationContext<char> context)
+            => context.Reader->ReadNext<char>();
+
+        string IBinaryAdapter<string>.Deserialize(in BinaryDeserializationContext<string> context)
         {
-            reader->ReadNextNBC(out string value);
+            context.Reader->ReadNextNBC(out var value);
             return value;
         }
     }
 }
-#endif

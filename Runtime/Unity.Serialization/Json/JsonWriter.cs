@@ -281,11 +281,8 @@ namespace Unity.Serialization.Json
             /// <param name="value">The value to write.</param>
             public void WriteValue(int value)
             {
-#if COLLECTIONS_1_0_0_OR_NEWER
                 FixedString128Bytes f = default;
-#else
-                FixedString128 f = default;
-#endif
+                
                 f.Append(value);
                 WriteValue(f);
             }
@@ -296,11 +293,8 @@ namespace Unity.Serialization.Json
             /// <param name="value">The value to write.</param>
             public void WriteValue(long value)
             {
-#if COLLECTIONS_1_0_0_OR_NEWER
                 FixedString128Bytes f = default;
-#else
-                FixedString128 f = default;
-#endif
+                
                 f.Append(value);
                 WriteValue(f);
             }
@@ -319,15 +313,30 @@ namespace Unity.Serialization.Json
                         WritePositiveInfinity();
                 }
                 
-#if COLLECTIONS_1_0_0_OR_NEWER
                 FixedString128Bytes f = default;
-#else
-                FixedString128 f = default;
-#endif
+                
                 f.Append(value);
                 WriteValue(f);
             }
             
+            /// <summary>
+            /// Writes the specified boolean value to the buffer with the correct formatting.
+            /// </summary>
+            /// <param name="value">The value to write.</param>
+            public void WriteValue(bool value)
+            {
+                if (value)
+                {
+                    var chars = stackalloc char[4] {'t', 'r', 'u', 'e'};
+                    WriteValueLiteral(chars, 4);
+                }
+                else
+                {
+                    var chars = stackalloc char[5] {'f', 'a', 'l', 's', 'e'};
+                    WriteValueLiteral(chars, 5);
+                }
+            }
+
             /// <summary>
             /// Writes the literal value 'null' to the buffer with the correct formatting.
             /// </summary>
@@ -423,6 +432,10 @@ namespace Unity.Serialization.Json
                             Write('\\');
                             Write('b');
                             break;
+                        case '\0':
+                            Write('\\');
+                            Write('0');
+                            break;
                         default:
                             Write(c);
                             break;
@@ -436,11 +449,7 @@ namespace Unity.Serialization.Json
             /// Writes the specified fixed string to the buffer as a literal.
             /// </summary>
             /// <param name="value">The string value to write.</param>
-#if COLLECTIONS_1_0_0_OR_NEWER
             void WriteValue(FixedString128Bytes value)
-#else
-            void WriteValue(FixedString128 value)
-#endif
             {
                 var value_ptr = UnsafeUtility.AddressOf(ref value);
                 var value_len = *(ushort*) value_ptr;
@@ -928,7 +937,13 @@ namespace Unity.Serialization.Json
         public void WriteValue(float value)
             => m_Impl.WriteValue(value);
         
-#if !NET_DOTS
+        /// <summary>
+        /// Writes the specified boolean value to the buffer with the correct formatting.
+        /// </summary>
+        /// <param name="value">The value to write.</param>
+        public void WriteValue(bool value)
+            => m_Impl.WriteValue(value);
+
         /// <summary>
         /// Writes the specified 32-bit unsigned integer value to the buffer with the correct formatting.
         /// </summary>
@@ -979,7 +994,6 @@ namespace Unity.Serialization.Json
                 }
             }
         }
-#endif
         
         /// <summary>
         /// Writes the literal value 'null' to the buffer with the correct formatting.
@@ -1076,7 +1090,17 @@ namespace Unity.Serialization.Json
             WriteValue(value);
         }
 
-#if !NET_DOTS
+        /// <summary>
+        /// Writes the specified key-value pair with to the buffer with the correct formatting.
+        /// </summary>
+        /// <param name="key">The key to write.</param>
+        /// <param name="value">The value to write.</param>
+        public void WriteKeyValue(string key, bool value)
+        {
+            WriteKey(key);
+            WriteValue(value);
+        }
+
         /// <summary>
         /// Writes the specified key-value pair with to the buffer with the correct formatting.
         /// </summary>
@@ -1109,8 +1133,7 @@ namespace Unity.Serialization.Json
             WriteKey(key);
             WriteValue(value);
         }
-#endif        
-        
+
         /// <summary>
         /// Writes the specified key-value pair with to the buffer with the correct formatting.
         /// </summary>

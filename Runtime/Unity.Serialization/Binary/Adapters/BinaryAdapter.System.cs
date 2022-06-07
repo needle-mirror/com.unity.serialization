@@ -1,10 +1,8 @@
-#if !NET_DOTS
 using System;
 using System.Globalization;
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections.LowLevel.Unsafe.NotBurstCompatible;
 
-namespace Unity.Serialization.Binary.Adapters
+namespace Unity.Serialization.Binary
 {
     unsafe partial class BinaryAdapter :
         IBinaryAdapter<Guid>,
@@ -12,41 +10,40 @@ namespace Unity.Serialization.Binary.Adapters
         IBinaryAdapter<TimeSpan>,
         IBinaryAdapter<Version>
     {
-        void IBinaryAdapter<Guid>.Serialize(UnsafeAppendBuffer* writer, Guid value)
-            => writer->AddNBC(value.ToString("N", CultureInfo.InvariantCulture));
+        void IBinaryAdapter<Guid>.Serialize(in BinarySerializationContext<Guid> context, Guid value)
+            => context.Writer->AddNBC(value.ToString("N", CultureInfo.InvariantCulture));
 
-        Guid IBinaryAdapter<Guid>.Deserialize(UnsafeAppendBuffer.Reader* reader)
+        Guid IBinaryAdapter<Guid>.Deserialize(in BinaryDeserializationContext<Guid> context)
         {
-            reader->ReadNextNBC(out string str);
+            context.Reader->ReadNextNBC(out var str);
             return Guid.TryParseExact(str, "N", out var value) ? value : default;
         }
 
-        void IBinaryAdapter<DateTime>.Serialize(UnsafeAppendBuffer* writer, DateTime value)
-            => writer->AddNBC(value.ToString("o", CultureInfo.InvariantCulture));
+        void IBinaryAdapter<DateTime>.Serialize(in BinarySerializationContext<DateTime> context, DateTime value)
+            => context.Writer->AddNBC(value.ToString("o", CultureInfo.InvariantCulture));
 
-        DateTime IBinaryAdapter<DateTime>.Deserialize(UnsafeAppendBuffer.Reader* reader)
+        DateTime IBinaryAdapter<DateTime>.Deserialize(in BinaryDeserializationContext<DateTime> context)
         {
-            reader->ReadNextNBC(out string str);
+            context.Reader->ReadNextNBC(out var str);
             return DateTime.TryParseExact(str, "o", CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var value) ? value : default;
         }
-        
-        void IBinaryAdapter<TimeSpan>.Serialize(UnsafeAppendBuffer* writer, TimeSpan value)
-            => writer->AddNBC(value.ToString("c", CultureInfo.InvariantCulture));
 
-        TimeSpan IBinaryAdapter<TimeSpan>.Deserialize(UnsafeAppendBuffer.Reader* reader)
+        void IBinaryAdapter<TimeSpan>.Serialize(in BinarySerializationContext<TimeSpan> context, TimeSpan value)
+            => context.Writer->AddNBC(value.ToString("c", CultureInfo.InvariantCulture));
+
+        TimeSpan IBinaryAdapter<TimeSpan>.Deserialize(in BinaryDeserializationContext<TimeSpan> context)
         {
-            reader->ReadNextNBC(out string str);
+            context.Reader->ReadNextNBC(out var str);
             return TimeSpan.TryParseExact(str, "c", CultureInfo.InvariantCulture, out var value) ? value : default;
         }
 
-        void IBinaryAdapter<Version>.Serialize(UnsafeAppendBuffer* writer, Version value)
-            => writer->AddNBC(value.ToString());
+        void IBinaryAdapter<Version>.Serialize(in BinarySerializationContext<Version> context, Version value)
+            => context.Writer->AddNBC(value.ToString());
 
-        Version IBinaryAdapter<Version>.Deserialize(UnsafeAppendBuffer.Reader* reader)
+        Version IBinaryAdapter<Version>.Deserialize(in BinaryDeserializationContext<Version> context)
         {
-            reader->ReadNextNBC(out string str);
+            context.Reader->ReadNextNBC(out var str);
             return new Version(str);
         }
     }
 }
-#endif

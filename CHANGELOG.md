@@ -4,57 +4,40 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [1.8.3] - 2022-02-01
-### Fixed
-* Changed internal usage of the `UNITY_DOTSPLAYER` define to `UNITY_DOTSRUNTIME`.
+## [2.0.0] - 2022-02-09
+
+### Added
+* Add `SerializeValue` API for `SerializationContext` objects for serialization re-entry.
+* Add `DeserializeValue` API for `SerializationContext` objects for serialization re-entry.
+* JSON serialization now supports simple json validation as an option.
+* Add `JsonWriter.WriteValue` override for bool values.
+* `JsonSerialization.ToJson` supports serializing `SerializedObjectView` and `SerializedArrayView`.
 
 ### Changed
-* Updated `com.unity.properties` to version `1.8.3-preview`.
-
-## [1.8.2] - 2022-01-25
-### Changed
-* Updated `com.unity.properties` to version `1.8.2-preview`.
-
-## [1.8.1] - 2022-01-24
-### Fixed
-* Fix nullable enum types for Unity `2021.2` and up.
-### Changed
-* Updated `com.unity.properties` to version `1.8.1-preview`.
-
-## [1.8.0] - 2022-01-17
-### Changed
-* Updated `com.unity.properties` to version `1.8.0-preview`.
-* Updated `com.unity.jobs` to version `0.11.0-preview.6`.
+* Updated minimum Unity version to `2021.3`.
+* Updated `com.unity.properties` to version `2.0.0-exp.11`.
 * Updated `com.unity.collections` to version `1.1.0`.
-* Updated `com.unity.burst` to version `1.6.4`.
-* Update Unity to version '2020.3'.
+* Updated `com.unity.burst` to version `1.6.1`.
+* Updated `com.unity.jobs` to version `0.11.0-preview.6`.
+* Updated `com.unity.test-framework.performance` to version `2.8.0-preview`.
+* ***Breaking change*** `IJsonAdapter` now pass a context object (`JsonSerializationContext` and `JsonDeserializationContext`). These context objects provide access to the underlying writer or serialized views. 
+* ***Breaking change*** `IBinaryAdapter` now pass a context object (`BinarySerializationContext` and `BinaryDeserializationContext`). These context objects provide access to the underlying writer or reader.
 
-## [1.7.3] - 2021-08-04
 ### Fixed
-* Fix exception thrown when trying to serialize or deserialize nullable struct types.
-
-### Changed
-* Updated `com.unity.properties` to version `1.7.1-preview`.
-
-## [1.7.2] - 2021-07-19
-### Fixed
-* Fix crash when re-allocating internal buffers in `JsonTokenizer`.
-
-## [1.7.1] - 2021-06-07
-### Fixed
-* Fix exception thrown in `UnsafePackedBinaryStream.GetFirstChildIndex` when deserializing large json files.
+* Fixed an issue where `BinarySerialization` was keeping serialized references until the next `ToBinary` call.
+* Fixed an issue where `JsonSerialization` validation was not detecting open scopes at the end of a stream.
+* JSON serialization now properly adds escape characters to `char` value `\0`.
 
 ## [1.7.0] - 2021-02-26
 ### Changed
 * Updated `com.unity.properties` to version `1.7.0-preview`.
 
-### Fixed
-* Fixed an issue where `BinarySerialization` was keeping serialized references until the next `ToBinary` call.
-* Fixed an issue where `JsonSerialization` validation was not detecting open scopes at the end of a stream.
-
 ## [1.6.2] - 2020-12-03
 ### Fixed
 * Fixed a regression causing `object` fields with bool values to be serialized as a quoted string.
+
+### Removed
+* ***Breaking change*** `JsonStringBuffer` has been removed. `JsonWriter` should be used instead.
 
 ## [1.6.1] - 2020-10-22
 ### Fixed

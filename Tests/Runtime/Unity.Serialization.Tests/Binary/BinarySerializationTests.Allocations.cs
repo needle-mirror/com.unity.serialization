@@ -9,13 +9,12 @@ namespace Unity.Serialization.Binary.Tests
     partial class BinarySerializationTests
     {
         [TestFixture]
-        unsafe class Allocations
+        internal unsafe class Allocations
         {
             [GeneratePropertyBag]
-            struct StructWithInt32Property
+            internal struct StructWithInt32Property
             {
-                public int Int32Property { get; set; }
-                public float Float32Property { get; set; }
+                [CreateProperty] public int Int32Property { get; set; }
             }
 
             [Test]

@@ -10,7 +10,7 @@ namespace Unity.Serialization.Tests
     partial class SerializationTestFixture
     {
         [GeneratePropertyBag]
-        class ClassWithGlobalObjectId
+        internal class ClassWithGlobalObjectId
         {
             public GlobalObjectId GlobalObjectId;
             public GUID Guid;

@@ -1,4 +1,3 @@
-#if !NET_DOTS
 using System;
 using NUnit.Framework;
 using Unity.Properties;
@@ -9,7 +8,7 @@ namespace Unity.Serialization.Tests
     partial class SerializationTestFixture
     {
         [GeneratePropertyBag]
-        class ClassWithSystemTypes
+        internal class ClassWithSystemTypes
         {
             public Guid Guid;
             public DateTime DateTime;
@@ -37,4 +36,3 @@ namespace Unity.Serialization.Tests
         }
     }
 }
-#endif

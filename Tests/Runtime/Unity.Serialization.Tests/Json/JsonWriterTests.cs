@@ -1,6 +1,8 @@
 using System;
+using System.Diagnostics;
 using NUnit.Framework;
 using Unity.Collections;
+using Unity.Serialization.Tests;
 
 namespace Unity.Serialization.Json.Tests
 {
@@ -46,6 +48,9 @@ namespace Unity.Serialization.Json.Tests
                 m_Writer.WriteKey("float");
                 m_Writer.WriteValue((float) 1.23f);
 
+                m_Writer.WriteKey("bool");
+                m_Writer.WriteValue((bool) false);
+                
                 m_Writer.WriteKey("string");
                 m_Writer.WriteValue("test");
             }
@@ -54,6 +59,7 @@ namespace Unity.Serialization.Json.Tests
     ""int"": -10,
     ""long"": 500,
     ""float"": 1.23,
+    ""bool"": false,
     ""string"": ""test""
 }");
         }
@@ -67,6 +73,7 @@ namespace Unity.Serialization.Json.Tests
         }
         
         [Test]
+        [TestRequires_ENABLE_UNITY_COLLECTION_CHECKS]
         public void Write_WithValueAsRoot_Throws()
         {
             m_Writer.WriteValue(1);
@@ -103,6 +110,7 @@ namespace Unity.Serialization.Json.Tests
         }
 
         [Test]
+        [TestRequires_ENABLE_UNITY_COLLECTION_CHECKS]
         public void WriteObject_AsRootWithKey_Throws()
         {
             Assert.Throws<InvalidOperationException>(() =>
@@ -112,6 +120,7 @@ namespace Unity.Serialization.Json.Tests
         }
 
         [Test]
+        [TestRequires_ENABLE_UNITY_COLLECTION_CHECKS]
         public void WriteObject_AsMemberWithNoKey_Throws()
         {
             m_Writer.WriteBeginObject();
@@ -170,6 +179,7 @@ namespace Unity.Serialization.Json.Tests
                 m_Writer.WriteValue((int) -10);
                 m_Writer.WriteValue((long) 500);
                 m_Writer.WriteValue((float) 1.23f);
+                m_Writer.WriteValue((bool) true);
                 m_Writer.WriteValue("test");
             }
 
@@ -177,11 +187,13 @@ namespace Unity.Serialization.Json.Tests
     -10,
     500,
     1.23,
+    true,
     ""test""
 ]");
         }
 
         [Test]
+        [TestRequires_ENABLE_UNITY_COLLECTION_CHECKS]
         public void WriteKey_AsArrayElement_Throws()
         {
             m_Writer.WriteBeginArray();
@@ -216,13 +228,15 @@ namespace Unity.Serialization.Json.Tests
                 m_Writer.WriteKeyValue("long", (long) 500);
                 m_Writer.WriteKeyValue("float", (float) 1.23f);
                 m_Writer.WriteKeyValue("string", "test");
+                m_Writer.WriteKeyValue("bool", (bool) true);
             }
             
             AssertThatJsonIs(expected: @"{
     ""int"": -10,
     ""long"": 500,
     ""float"": 1.23,
-    ""string"": ""test""
+    ""string"": ""test"",
+    ""bool"": true
 }");
         }
 

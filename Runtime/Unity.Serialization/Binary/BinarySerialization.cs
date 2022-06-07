@@ -1,10 +1,8 @@
-#if !NET_DOTS
 using System;
 using System.Collections.Generic;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections.LowLevel.Unsafe.NotBurstCompatible;
 using Unity.Properties;
-using Unity.Serialization.Binary.Adapters;
 
 namespace Unity.Serialization.Binary
 {
@@ -12,32 +10,49 @@ namespace Unity.Serialization.Binary
     /// This class is used to store state between multiple serialization calls.
     /// By passing this to <see cref="BinarySerializationParameters"/> will allow visitors and serialized references to be re-used.
     /// </summary>
-    class BinarySerializationContext
+    public class BinarySerializationState
     {
         BinaryPropertyWriter m_BinaryPropertyWriter;
         BinaryPropertyReader m_BinaryPropertyReader;
         SerializedReferences m_SerializedReferences;
 
         /// <summary>
+        /// Returns true if the given state is in use by either serialization or de-serialization.
+        /// </summary>
+        internal bool IsLocked => m_BinaryPropertyWriter != null && m_BinaryPropertyWriter.IsLocked || m_BinaryPropertyReader != null && m_BinaryPropertyReader.IsLocked;
+
+        /// <summary>
         /// Gets the shared <see cref="BinaryPropertyWriter"/>.
         /// </summary>
         /// <returns>The <see cref="BinaryPropertyWriter"/>.</returns>
         internal BinaryPropertyWriter GetBinaryPropertyWriter()
-            => m_BinaryPropertyWriter ?? (m_BinaryPropertyWriter = new BinaryPropertyWriter());
-        
+        {
+            if (null != m_BinaryPropertyWriter)
+                return m_BinaryPropertyWriter.IsLocked ? new BinaryPropertyWriter() : m_BinaryPropertyWriter;
+
+            m_BinaryPropertyWriter = new BinaryPropertyWriter();
+            return m_BinaryPropertyWriter;
+        }
+
         /// <summary>
         /// Gets the shared <see cref="BinaryPropertyReader"/>.
         /// </summary>
         /// <returns>The <see cref="BinaryPropertyReader"/>.</returns>
         internal BinaryPropertyReader GetBinaryPropertyReader()
-            => m_BinaryPropertyReader ?? (m_BinaryPropertyReader = new BinaryPropertyReader());
-        
+        {
+            if (null != m_BinaryPropertyReader)
+                return m_BinaryPropertyReader.IsLocked ? new BinaryPropertyReader() : m_BinaryPropertyReader;
+
+            m_BinaryPropertyReader = new BinaryPropertyReader();
+            return m_BinaryPropertyReader;
+        }
+
         /// <summary>
         /// Gets the shared <see cref="SerializedReferences"/>.
         /// </summary>
         /// <returns>The <see cref="SerializedReferences"/>.</returns>
         internal SerializedReferences GetSerializedReferences()
-            => m_SerializedReferences ?? (m_SerializedReferences = new SerializedReferences());
+            => m_SerializedReferences ??= new SerializedReferences();
 
         /// <summary>
         /// Clears the serialized references state.
@@ -47,7 +62,7 @@ namespace Unity.Serialization.Binary
             m_SerializedReferences?.Clear();
         }
     }
-    
+
     /// <summary>
     /// Custom parameters to use for binary serialization or deserialization.
     /// </summary>
@@ -58,12 +73,12 @@ namespace Unity.Serialization.Binary
         /// parameter to provide a known root type at both serialize and deserialize time to avoid writing this information.
         /// </summary>
         public Type SerializedType { get; set; }
-        
+
         /// <summary>
         /// By default, adapters are evaluated for root objects. Use this to change the default behaviour.
         /// </summary>
         public bool DisableRootAdapters { get; set; }
-        
+
         /// <summary>
         /// Provide a custom set of adapters for the serialization and deserialization.
         /// </summary>
@@ -71,7 +86,7 @@ namespace Unity.Serialization.Binary
         /// These adapters will be evaluated first before any global or built in adapters.
         /// </remarks>
         public List<IBinaryAdapter> UserDefinedAdapters { get; set; }
-        
+
         /// <summary>
         /// This parameter indicates if the serializer should be thread safe. The default value is false.
         /// </summary>
@@ -79,16 +94,16 @@ namespace Unity.Serialization.Binary
         /// Setting this to true will cause managed allocations for the internal visitor.
         /// </remarks>
         public bool RequiresThreadSafety { get; set; }
-        
+
         /// <summary>
         /// By default, references between objects are serialized. Use this to always write a copy of the object to the output.
         /// </summary>
         public bool DisableSerializedReferences { get; set; }
-        
+
         /// <summary>
-        /// Sets the context object for serialization. This can be used to shared resources across multiple calls to serialize and deserialize.
+        /// Sets the state object for serialization. This can be used to share resources across multiple calls to serialize and deserialize.
         /// </summary>
-        internal BinarySerializationContext Context { get; set; }
+        public BinarySerializationState State { get; set; }
     }
 
     /// <summary>
@@ -96,15 +111,19 @@ namespace Unity.Serialization.Binary
     /// </summary>
     public static partial class BinarySerialization
     {
-        static readonly List<IBinaryAdapter> s_Adapters = new List<IBinaryAdapter>();
-        static readonly BinarySerializationContext m_SharedContext = new BinarySerializationContext();
+        static readonly List<IBinaryAdapter> k_Adapters = new List<IBinaryAdapter>();
+        static readonly BinarySerializationState k_SharedState = new BinarySerializationState();
 
-        static BinarySerializationContext GetSharedContext()
+        static BinarySerializationState GetSharedState()
         {
-            m_SharedContext.ClearSerializedReferences();
-            return m_SharedContext;
+            // The current state is in use by the current stack. We must return a new instance to avoid trashing the serialized references.
+            if (k_SharedState.IsLocked)
+                return new BinarySerializationState();
+
+            k_SharedState.ClearSerializedReferences();
+            return k_SharedState;
         }
-        
+
         /// <summary>
         /// Adds the specified <see cref="IBinaryAdapter"/> to the set of global adapters. This is be included by default in all BinarySerialization calls.
         /// </summary>
@@ -112,17 +131,16 @@ namespace Unity.Serialization.Binary
         /// <exception cref="ArgumentException">The given adapter is already registered.</exception>
         public static void AddGlobalAdapter(IBinaryAdapter adapter)
         {
-            if (s_Adapters.Contains(adapter))
+            if (k_Adapters.Contains(adapter))
                 throw new ArgumentException("IBinaryAdapter has already been registered.");
-            
-            s_Adapters.Add(adapter);
+
+            k_Adapters.Add(adapter);
         }
 
-        static List<IBinaryAdapter> GetGlobalAdapters() => s_Adapters;
+        static List<IBinaryAdapter> GetGlobalAdapters() => k_Adapters;
 
         internal static unsafe void WritePrimitiveUnsafe<TValue>(UnsafeAppendBuffer* stream, ref TValue value, Type type)
         {
-#if UNITY_2020_1_OR_NEWER
             switch (Type.GetTypeCode(type))
             {
                 case TypeCode.SByte:
@@ -167,54 +185,8 @@ namespace Unity.Serialization.Binary
                 default:
                     throw new ArgumentOutOfRangeException();
             }
-#else
-            switch (Type.GetTypeCode(type))
-            {
-                case TypeCode.SByte:
-                    stream->Add(System.Runtime.CompilerServices.Unsafe.As<TValue, sbyte>(ref value));
-                    return;
-                case TypeCode.Int16:
-                    stream->Add(System.Runtime.CompilerServices.Unsafe.As<TValue, short>(ref value));
-                    return;
-                case TypeCode.Int32:
-                    stream->Add(System.Runtime.CompilerServices.Unsafe.As<TValue, int>(ref value));
-                    return;
-                case TypeCode.Int64:
-                    stream->Add(System.Runtime.CompilerServices.Unsafe.As<TValue, long>(ref value));
-                    return;
-                case TypeCode.Byte:
-                    stream->Add(System.Runtime.CompilerServices.Unsafe.As<TValue, byte>(ref value));
-                    return;
-                case TypeCode.UInt16:
-                    stream->Add(System.Runtime.CompilerServices.Unsafe.As<TValue, ushort>(ref value));
-                    return;
-                case TypeCode.UInt32:
-                    stream->Add(System.Runtime.CompilerServices.Unsafe.As<TValue, uint>(ref value));
-                    return;
-                case TypeCode.UInt64:
-                    stream->Add(System.Runtime.CompilerServices.Unsafe.As<TValue, ulong>(ref value));
-                    return;
-                case TypeCode.Single:
-                    stream->Add(System.Runtime.CompilerServices.Unsafe.As<TValue, float>(ref value));
-                    return;
-                case TypeCode.Double:
-                    stream->Add(System.Runtime.CompilerServices.Unsafe.As<TValue, double>(ref value));
-                    return;
-                case TypeCode.Boolean:
-                    stream->Add(System.Runtime.CompilerServices.Unsafe.As<TValue, bool>(ref value) ? (byte) 1 : (byte) 0);
-                    return;
-                case TypeCode.Char:
-                    stream->Add(System.Runtime.CompilerServices.Unsafe.As<TValue, char>(ref value));
-                    return;
-                case TypeCode.String:
-                    stream->Add(value as string);
-                    return;
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
-#endif
-        } 
-        
+        }
+
         internal static unsafe void WritePrimitiveBoxed(UnsafeAppendBuffer* stream, object value, Type type)
         {
             switch (Type.GetTypeCode(type))
@@ -262,128 +234,67 @@ namespace Unity.Serialization.Binary
                     throw new ArgumentOutOfRangeException();
             }
         }
-        
+
         internal static unsafe void ReadPrimitiveUnsafe<TValue>(UnsafeAppendBuffer.Reader* stream, ref TValue value, Type type)
         {
-#if UNITY_2020_1_OR_NEWER
             switch (Type.GetTypeCode(type))
             {
                 case TypeCode.SByte:
-                    stream->ReadNext<sbyte>(out var _sbyte);
-                    value = UnsafeUtility.As<sbyte, TValue>(ref _sbyte);
+                    stream->ReadNext<sbyte>(out var sbyteValue);
+                    value = UnsafeUtility.As<sbyte, TValue>(ref sbyteValue);
                     return;
                 case TypeCode.Int16:
-                    stream->ReadNext<short>(out var _short);
-                    value = UnsafeUtility.As<short, TValue>(ref _short);
+                    stream->ReadNext<short>(out var shortValue);
+                    value = UnsafeUtility.As<short, TValue>(ref shortValue);
                     return;
                 case TypeCode.Int32:
-                    stream->ReadNext<int>(out var _int);
-                    value = UnsafeUtility.As<int, TValue>(ref _int);
+                    stream->ReadNext<int>(out var intValue);
+                    value = UnsafeUtility.As<int, TValue>(ref intValue);
                     return;
                 case TypeCode.Int64:
-                    stream->ReadNext<long>(out var _long);
-                    value = UnsafeUtility.As<long, TValue>(ref _long);
+                    stream->ReadNext<long>(out var longValue);
+                    value = UnsafeUtility.As<long, TValue>(ref longValue);
                     return;
                 case TypeCode.Byte:
-                    stream->ReadNext<byte>(out var _byte);
-                    value = UnsafeUtility.As<byte, TValue>(ref _byte);
+                    stream->ReadNext<byte>(out var byteValue);
+                    value = UnsafeUtility.As<byte, TValue>(ref byteValue);
                     return;
                 case TypeCode.UInt16:
-                    stream->ReadNext<ushort>(out var _ushort);
-                    value = UnsafeUtility.As<ushort, TValue>(ref _ushort);
+                    stream->ReadNext<ushort>(out var ushortValue);
+                    value = UnsafeUtility.As<ushort, TValue>(ref ushortValue);
                     return;
                 case TypeCode.UInt32:
-                    stream->ReadNext<uint>(out var _uint);
-                    value = UnsafeUtility.As<uint, TValue>(ref _uint);
+                    stream->ReadNext<uint>(out var uintValue);
+                    value = UnsafeUtility.As<uint, TValue>(ref uintValue);
                     return;
                 case TypeCode.UInt64:
-                    stream->ReadNext<ulong>(out var _ulong);
-                    value = UnsafeUtility.As<ulong, TValue>(ref _ulong);
+                    stream->ReadNext<ulong>(out var ulongValue);
+                    value = UnsafeUtility.As<ulong, TValue>(ref ulongValue);
                     return;
                 case TypeCode.Single:
-                    stream->ReadNext<float>(out var _float);
-                    value = UnsafeUtility.As<float, TValue>(ref _float);
+                    stream->ReadNext<float>(out var floatValue);
+                    value = UnsafeUtility.As<float, TValue>(ref floatValue);
                     return;
                 case TypeCode.Double:
-                    stream->ReadNext<double>(out var _double);
-                    value = UnsafeUtility.As<double, TValue>(ref _double);
+                    stream->ReadNext<double>(out var doubleValue);
+                    value = UnsafeUtility.As<double, TValue>(ref doubleValue);
                     return;
                 case TypeCode.Boolean:
-                    stream->ReadNext<byte>(out var _boolean);
-                    var b = _boolean == 1;
+                    stream->ReadNext<byte>(out var booleanValue);
+                    var b = booleanValue == 1;
                     value = UnsafeUtility.As<bool, TValue>(ref b);
                     return;
                 case TypeCode.Char:
-                    stream->ReadNext<char>(out var _char);
-                    value = UnsafeUtility.As<char, TValue>(ref _char);
+                    stream->ReadNext<char>(out var charValue);
+                    value = UnsafeUtility.As<char, TValue>(ref charValue);
                     return;
                 case TypeCode.String:
-                    stream->ReadNextNBC(out string _string);
-                    value = (TValue) (object) _string;
+                    stream->ReadNextNBC(out string stringValue);
+                    value = (TValue) (object) stringValue;
                     return;
                 default:
                     throw new ArgumentOutOfRangeException();
             }
-#else
-            switch (Type.GetTypeCode(type))
-            {
-                case TypeCode.SByte:
-                    stream->ReadNext<sbyte>(out var _sbyte);
-                    value = System.Runtime.CompilerServices.Unsafe.As<sbyte, TValue>(ref _sbyte);
-                    return;
-                case TypeCode.Int16:
-                    stream->ReadNext<short>(out var _short);
-                    value = System.Runtime.CompilerServices.Unsafe.As<short, TValue>(ref _short);
-                    return;
-                case TypeCode.Int32:
-                    stream->ReadNext<int>(out var _int);
-                    value = System.Runtime.CompilerServices.Unsafe.As<int, TValue>(ref _int);
-                    return;
-                case TypeCode.Int64:
-                    stream->ReadNext<long>(out var _long);
-                    value = System.Runtime.CompilerServices.Unsafe.As<long, TValue>(ref _long);
-                    return;
-                case TypeCode.Byte:
-                    stream->ReadNext<byte>(out var _byte);
-                    value = System.Runtime.CompilerServices.Unsafe.As<byte, TValue>(ref _byte);
-                    return;
-                case TypeCode.UInt16:
-                    stream->ReadNext<ushort>(out var _ushort);
-                    value = System.Runtime.CompilerServices.Unsafe.As<ushort, TValue>(ref _ushort);
-                    return;
-                case TypeCode.UInt32:
-                    stream->ReadNext<uint>(out var _uint);
-                    value = System.Runtime.CompilerServices.Unsafe.As<uint, TValue>(ref _uint);
-                    return;
-                case TypeCode.UInt64:
-                    stream->ReadNext<ulong>(out var _ulong);
-                    value = System.Runtime.CompilerServices.Unsafe.As<ulong, TValue>(ref _ulong);
-                    return;
-                case TypeCode.Single:
-                    stream->ReadNext<float>(out var _float);
-                    value = System.Runtime.CompilerServices.Unsafe.As<float, TValue>(ref _float);
-                    return;
-                case TypeCode.Double:
-                    stream->ReadNext<double>(out var _double);
-                    value = System.Runtime.CompilerServices.Unsafe.As<double, TValue>(ref _double);
-                    return;
-                case TypeCode.Boolean:
-                    stream->ReadNext<byte>(out var _boolean);
-                    var b = _boolean == 1;
-                    value = System.Runtime.CompilerServices.Unsafe.As<bool, TValue>(ref b);
-                    return;
-                case TypeCode.Char:
-                    stream->ReadNext<char>(out var _char);
-                    value = System.Runtime.CompilerServices.Unsafe.As<char, TValue>(ref _char);
-                    return;
-                case TypeCode.String:
-                    stream->ReadNext(out string _string);
-                    value = (TValue) (object) _string;
-                    return;
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
-#endif
         }
 
         internal static unsafe void ReadPrimitiveBoxed<TValue>(UnsafeAppendBuffer.Reader* stream, ref TValue value, Type type)
@@ -474,4 +385,3 @@ namespace Unity.Serialization.Binary
         }
     }
 }
-#endif

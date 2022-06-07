@@ -2,10 +2,8 @@ using System;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 
-#if !NET_DOTS
 using System.IO;
 using System.Text;
-#endif
 
 namespace Unity.Serialization.Json
 {    
@@ -109,7 +107,6 @@ namespace Unity.Serialization.Json
             return new PackedBinaryStream(configuration.TokenBufferSize, configuration.OutputBufferSize, label);
         }
         
-#if !NET_DOTS
         static Stream OpenFileStreamWithConfiguration(string path, SerializedObjectReaderConfiguration configuration)
         {
             if (configuration.BlockBufferSize < 16)
@@ -242,7 +239,6 @@ namespace Unity.Serialization.Json
             m_InitialBlock = default;
             m_CurrentBlock = default;
         }
-#endif
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SerializedObjectReader"/> class based on the specified input buffer and configuration.

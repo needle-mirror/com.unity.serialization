@@ -8,7 +8,7 @@ namespace Unity.Serialization.Tests
         [Test]
         public void ClassWithNullableInt32_CanBeSerializedAndDeserialized()
         {
-            var src = new ClassWithNullable
+            var src = new ClassWithNullablePrimitives
             {
                 NullableInt32 = null
             };
@@ -22,7 +22,7 @@ namespace Unity.Serialization.Tests
         [Test]
         public void ClassWithNullableInt32_WhenValueIsNotNull_CanBeSerializedAndDeserialized()
         {
-            var src = new ClassWithNullable
+            var src = new ClassWithNullablePrimitives
             {
                 NullableInt32 = 10
             };
@@ -36,7 +36,7 @@ namespace Unity.Serialization.Tests
         [Test]
         public void ClassWithNullableEnum_WhenValueIsNotNull_CanBeSerializedAndDeserialized()
         {
-            var src = new ClassWithNullable
+            var src = new ClassWithNullablePrimitives
             {
                 NullableEnumUInt8 = EnumUInt8.Value1
             };
@@ -48,9 +48,9 @@ namespace Unity.Serialization.Tests
         }
         
         [Test]
-        public void ClassWithNullableEnum_CanBeSerializedAndDeserialized_CanBeSerializedAndDeserialized()
+        public void ClassWithNullableEnum_WhenValueIsNull_CanBeSerializedAndDeserialized()
         {
-            var src = new ClassWithNullable
+            var src = new ClassWithNullablePrimitives
             {
                 NullableEnumUInt8 = null
             };
@@ -62,21 +62,61 @@ namespace Unity.Serialization.Tests
         }
         
         [Test]
+        public void ClassWithNullableStruct_WhenValueIsNotNull_CanBeSerializedAndDeserialized()
+        {
+            var src = new ClassWithNullableContainers
+            {
+                NullableStructWithPrimitives = new StructWithPrimitives
+                {
+                    Int32Value = 42
+                }
+            };
+            
+            var dst = SerializeAndDeserialize(src);
+            
+            Assert.That(dst, Is.Not.SameAs(src));
+            Assert.That(dst.NullableStructWithPrimitives, Is.Not.Null);
+            Assert.That(dst.NullableStructWithPrimitives.Value.Int32Value, Is.EqualTo(src.NullableStructWithPrimitives.Value.Int32Value));
+        }
+        
+        [Test]
+        public void ClassWithNullableStruct_WhenValueIsNull_CanBeSerializedAndDeserialized()
+        {
+            var src = new ClassWithNullableContainers
+            {
+                NullableStructWithPrimitives = null
+            };
+            
+            var dst = SerializeAndDeserialize(src);
+            
+            Assert.That(dst, Is.Not.SameAs(src));
+            Assert.That(dst.NullableStructWithPrimitives, Is.EqualTo(src.NullableStructWithPrimitives));
+        }
+        
+        [Test]
         public void NullableStruct_WhenValueIsNull_CanBeSerializedAndDeserialized()
         {
+#if !UNITY_2022_1_OR_NEWER
+            Properties.AOT.PropertyGenerator<PropertyWrapper<StructWithPrimitives?>, StructWithPrimitives?>.Preserve();
+#endif
+            
             StructWithPrimitives? src = null;
             var dst = SerializeAndDeserialize(src);
             Assert.That(dst, Is.Null);
         }
-
+        
         [Test]
         public void NullableStruct_WhenValueIsNotNull_CanBeSerializedAndDeserialized()
         {
+#if !UNITY_2022_1_OR_NEWER
+            Properties.AOT.PropertyGenerator<PropertyWrapper<StructWithPrimitives?>, StructWithPrimitives?>.Preserve();
+#endif
+            
             StructWithPrimitives? src = new StructWithPrimitives
             {
                 Int32Value = 38
             };
-
+            
             var dst = SerializeAndDeserialize(src);
             Assert.That(dst, Is.Not.Null);
             Assert.That(dst.Value.Int32Value, Is.EqualTo(src.Value.Int32Value));

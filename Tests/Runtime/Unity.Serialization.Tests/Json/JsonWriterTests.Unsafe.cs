@@ -21,6 +21,7 @@ namespace Unity.Serialization.Json.Tests
                 Writer.WriteBeginArray();
                 Writer.WriteValue((int) -1);
                 Writer.WriteValue((long) long.MaxValue);
+                Writer.WriteValue((bool) true);
                 Writer.WriteEndArray();
                 
                 Writer.WriteEndObject();
@@ -38,7 +39,8 @@ namespace Unity.Serialization.Json.Tests
             AssertThatJsonIs(@"{
     ""test"": [
         -1,
-        9223372036854775807
+        9223372036854775807,
+        true
     ]
 }");
         }

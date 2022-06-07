@@ -8,7 +8,7 @@ namespace Unity.Serialization.Json.Tests
     partial class JsonSerializationTests
     {
         [GeneratePropertyBag, UsedImplicitly]
-        class TestClassWithFormerNameMembers
+        internal class TestClassWithFormerNameMembers
         {
             [UnityEngine.Serialization.FormerlySerializedAs("x")]
             public float RenamedX;
@@ -24,7 +24,7 @@ namespace Unity.Serialization.Json.Tests
         
         [FormerName("Some.Other.Assembly.DerivedTypeThatIsConstructible, Some.Other.Assembly")]
         [UsedImplicitly]
-        class TestClassWithFormerName
+        internal class TestClassWithFormerName
         {
             public int A;
         }

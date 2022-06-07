@@ -1,9 +1,7 @@
-#if !NET_DOTS
 using System;
 using Unity.Properties;
-using Unity.Properties.Internal;
 
-namespace Unity.Serialization.Json.Adapters
+namespace Unity.Serialization.Json
 {
     /// <summary>
     /// A migration context used to deserialize and migrate types.
@@ -184,7 +182,7 @@ namespace Unity.Serialization.Json.Adapters
                 case TokenType.Object:
                 case TokenType.Array:
                 {
-                    var serializedType = !RuntimeTypeInfoCache<TValue>.IsAbstractOrInterface
+                    var serializedType = !TypeTraits<TValue>.IsAbstractOrInterface
                         ? typeof(TValue) 
                         : null;
                     
@@ -193,7 +191,7 @@ namespace Unity.Serialization.Json.Adapters
                     using (m_Visitor.CreateDisableRootMigrationScope(true))
                     {
                         var container = new PropertyWrapper<TValue>(value);
-                        PropertyContainer.Visit(ref container, m_Visitor, out _);
+                        PropertyContainer.TryAccept(m_Visitor, ref container);
                         value = container.Value;
                     }
 
@@ -205,4 +203,3 @@ namespace Unity.Serialization.Json.Adapters
         }
     }
 }
-#endif

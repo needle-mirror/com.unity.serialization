@@ -1,29 +1,28 @@
-#if !UNITY_DOTSRUNTIME
 using System;
 using Unity.Collections;
 using UnityObject = UnityEngine.Object;
 
-namespace Unity.Serialization.Json.Adapters
+namespace Unity.Serialization.Json
 {
     partial class JsonAdapter :
-        Contravariant.IJsonAdapter<UnityObject>
+        IContravariantJsonAdapter<UnityObject>
     {
-        void Contravariant.IJsonAdapter<UnityObject>.Serialize(JsonStringBuffer writer, UnityObject value)
+        void IContravariantJsonAdapter<UnityObject>.Serialize(IJsonSerializationContext context, UnityObject value)
         {
 #if UNITY_EDITOR
             var id = UnityEditor.GlobalObjectId.GetGlobalObjectIdSlow(value).ToString();
-            writer.WriteEncodedJsonString(id);
+            context.Writer.WriteValue(id);
 #else
-            writer.Write("null");
+           context.Writer.WriteNull();
 #endif
         }
 
-        object Contravariant.IJsonAdapter<UnityObject>.Deserialize(SerializedValueView view)
+        object IContravariantJsonAdapter<UnityObject>.Deserialize(IJsonDeserializationContext context)
         {
 #if UNITY_EDITOR
-            if (view.Type == TokenType.String)
+            if (context.SerializedValue.Type == TokenType.String)
             {
-                if (UnityEditor.GlobalObjectId.TryParse(view.ToString(), out var id))
+                if (UnityEditor.GlobalObjectId.TryParse(context.SerializedValue.ToString(), out var id))
                 {
                     if (id.assetGUID.Empty())
                     {
@@ -40,9 +39,9 @@ namespace Unity.Serialization.Json.Adapters
                 }
             }
 
-            if (view.Type == TokenType.Object)
+            if (context.SerializedValue.Type == TokenType.Object)
             {
-                return FromObjectHandle(view.AsObjectView());
+                return FromObjectHandle(context.SerializedValue.AsObjectView());
             }
 #endif
             return null;
@@ -69,16 +68,17 @@ namespace Unity.Serialization.Json.Adapters
             if (guid == s_EmptyGuid || guid == string.Empty)
                 return null;
 
-            using (var writer = new JsonStringBuffer(256, Allocator.Temp))
+            using (var writer = new JsonWriter(256, Allocator.Temp))
             {
-                writer.Write("{\"o\":{");
-                writer.Write("\"fileID\":");
-                writer.Write(fileId);
-                writer.Write(",\"guid\":\"");
-                writer.Write(guid);
-                writer.Write("\",\"type\": ");
-                writer.Write(type);
-                writer.Write("}}");
+                using (writer.WriteObjectScope())
+                {
+                    using (writer.WriteObjectScope("o"))
+                    {
+                        writer.WriteKeyValue("fileID", fileId);
+                        writer.WriteKeyValue("guid", guid);
+                        writer.WriteKeyValue("type", type);
+                    }
+                }
                 
                 var json = writer.ToString();
                 UnityEditor.EditorJsonUtility.FromJsonOverwrite(json, container);
@@ -88,4 +88,3 @@ namespace Unity.Serialization.Json.Adapters
 #endif
     }
 }
-#endif

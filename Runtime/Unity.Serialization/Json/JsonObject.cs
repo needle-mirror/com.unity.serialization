@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Unity.Properties.Internal;
+using Unity.Properties;
 
 namespace Unity.Serialization.Json
 {
@@ -10,7 +10,7 @@ namespace Unity.Serialization.Json
     {
         static JsonObject()
         {
-            PropertyBagStore.AddPropertyBag(new DictionaryPropertyBag<JsonObject, string, object>());
+            PropertyBag.Register(new KeyValueCollectionPropertyBag<JsonObject, string, object>());
         }
     }
 
@@ -21,7 +21,7 @@ namespace Unity.Serialization.Json
     {
         static JsonArray()
         {
-            PropertyBagStore.AddPropertyBag(new ListPropertyBag<JsonArray, object>());
+            PropertyBag.Register(new IndexedCollectionPropertyBag<JsonArray, object>());
         }
     }
 }

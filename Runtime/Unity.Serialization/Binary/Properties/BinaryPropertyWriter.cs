@@ -1,11 +1,8 @@
-#if !NET_DOTS
 using System;
 using System.Collections.Generic;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections.LowLevel.Unsafe.NotBurstCompatible;
 using Unity.Properties;
-using Unity.Properties.Internal;
-using Unity.Serialization.Binary.Adapters;
 
 namespace Unity.Serialization.Binary
 {
@@ -22,6 +19,8 @@ namespace Unity.Serialization.Binary
         BinaryAdapterCollection m_Adapters;
         SerializedReferences m_SerializedReferences;
 
+        internal UnsafeAppendBuffer* Writer => m_Stream;
+
         public void SetStream(UnsafeAppendBuffer* stream)
             => m_Stream = stream;
 
@@ -32,40 +31,27 @@ namespace Unity.Serialization.Binary
             => m_DisableRootAdapters = disableRootAdapters;
 
         public void SetGlobalAdapters(List<IBinaryAdapter> adapters)
-            => m_Adapters.GlobalAdapters = adapters;
+            => m_Adapters.Global = adapters;
 
         public void SetUserDefinedAdapters(List<IBinaryAdapter> adapters)
-            => m_Adapters.UserDefinedAdapters = adapters;
-        
+            => m_Adapters.UserDefined = adapters;
+
         public void SetSerializedReferences(SerializedReferences serializedReferences)
             => m_SerializedReferences = serializedReferences;
 
         public BinaryPropertyWriter()
         {
-            m_Adapters.InternalAdapter = this;
+            m_Adapters.Internal = this;
         }
 
         void IPropertyBagVisitor.Visit<TContainer>(IPropertyBag<TContainer> properties, ref TContainer container)
         {
-            if (properties is IPropertyList<TContainer> collection)
+            foreach (var property in properties.GetProperties(ref container))
             {
-                foreach (var property in collection.GetProperties(ref container))
-                {
-                    if (property.HasAttribute<NonSerializedAttribute>() || property.HasAttribute<DontSerializeAttribute>())
-                        continue;
-                    
-                    ((IPropertyAccept<TContainer>) property).Accept(this, ref container);
-                }
-            }
-            else
-            {
-                foreach (var property in properties.GetProperties(ref container))
-                {
-                    if (property.HasAttribute<NonSerializedAttribute>() || property.HasAttribute<DontSerializeAttribute>())
-                        continue;
+                if (PropertyChecks.IsPropertyExcludedFromSerialization(property))
+                    continue;
 
-                    ((IPropertyAccept<TContainer>) property).Accept(this, ref container);
-                }
+                property.Accept(this, ref container);
             }
         }
 
@@ -106,50 +92,79 @@ namespace Unity.Serialization.Binary
             WriteValue(property.GetValue(ref container), isRootProperty);
         }
 
-        void WriteValue<TValue>(TValue value, bool isRoot = false)
+        internal void WriteValue<TValue>(TValue value, bool isRoot = false)
         {
-            var runAdapters = !(isRoot && m_DisableRootAdapters);
+            if (!(isRoot && m_DisableRootAdapters))
+                WriteValueWithAdapters(value, m_Adapters.GetEnumerator(), isRoot);
+            else
+                WriteValueWithoutAdapters(value, true);
+        }
 
-            if (runAdapters && m_Adapters.TrySerialize(m_Stream, ref value))
+        internal void WriteValueWithAdapters<TValue>(TValue value, BinaryAdapterCollection.Enumerator adapters, bool isRoot)
+        {
+            while (adapters.MoveNext())
             {
-                return;
+                switch (adapters.Current)
+                {
+                    case IBinaryAdapter<TValue> typed:
+                        typed.Serialize(new BinarySerializationContext<TValue>(this, adapters, value, isRoot), value);
+                        return;
+                    case IContravariantBinaryAdapter<TValue> typedContravariant:
+                        // NOTE: Boxing
+                        typedContravariant.Serialize((IBinarySerializationContext) new BinarySerializationContext<TValue>(this, adapters, value, isRoot), value);
+                        return;
+                }
             }
-            
-            if (RuntimeTypeInfoCache<TValue>.IsEnum)
+
+            // Do the default thing.
+            WriteValueWithoutAdapters(value, isRoot);
+        }
+
+        internal void WriteValueWithoutAdapters<TValue>(TValue value, bool isRoot)
+        {
+            if (TypeTraits<TValue>.IsEnum)
             {
                 BinarySerialization.WritePrimitiveUnsafe(m_Stream, ref value, Enum.GetUnderlyingType(typeof(TValue)));
                 return;
             }
 
-            if (RuntimeTypeInfoCache<TValue>.CanBeNull && null == value)
+            if (TypeTraits<TValue>.CanBeNull && null == value)
             {
                 m_Stream->Add(k_TokenNull);
                 return;
             }
 
-            if (RuntimeTypeInfoCache<TValue>.IsNullable)
+            if (TypeTraits<TValue>.IsMultidimensionalArray)
+            {
+                // No support for multidimensional arrays yet. This can be done using adapters for now.
+                m_Stream->Add(k_TokenNull);
+                return;
+            }
+
+            if (TypeTraits<TValue>.IsNullable)
             {
                 m_Stream->Add(k_TokenNone);
+
                 var underlyingType = Nullable.GetUnderlyingType(typeof(TValue));
 
-                if (RuntimeTypeInfoCache.IsContainerType(underlyingType))
+                if (TypeTraits.IsContainer(underlyingType))
                 {
                     // IMPORTANT: Do NOT add a token to the stream since we are triggering a re-entrance on the same object here.
                     // Unpack Nullable<T> as T
                     var underlyingValue = Convert.ChangeType(value, underlyingType);
 
-                    if (!PropertyContainer.Visit(ref underlyingValue, this, out var errorCode))
+                    if (!PropertyContainer.TryAccept(this, ref underlyingValue, out var errorCode))
                     {
                         switch (errorCode)
                         {
-                            case VisitErrorCode.NullContainer:
+                            case VisitReturnCode.NullContainer:
                                 throw new ArgumentNullException(nameof(value));
-                            case VisitErrorCode.InvalidContainerType:
+                            case VisitReturnCode.InvalidContainerType:
                                 throw new InvalidContainerTypeException(value.GetType());
-                            case VisitErrorCode.MissingPropertyBag:
+                            case VisitReturnCode.MissingPropertyBag:
                                 throw new MissingPropertyBagException(value.GetType());
                             default:
-                                throw new Exception($"Unexpected {nameof(VisitErrorCode)}=[{errorCode}]");
+                                throw new Exception($"Unexpected {nameof(VisitReturnCode)}=[{errorCode}]");
                         }
                     }
                 }
@@ -160,19 +175,28 @@ namespace Unity.Serialization.Binary
 
                 return;
             }
-            
-            if (!RuntimeTypeInfoCache<TValue>.IsValueType)
+
+            if (!TypeTraits<TValue>.IsValueType)
             {
-#if !UNITY_DOTSRUNTIME
-                if (runAdapters && value is UnityEngine.Object unityEngineObject)
+                if (!(isRoot && m_DisableRootAdapters) && value is UnityEngine.Object unityEngineObject)
                 {
                     // Special path for polymorphic unity object references.
                     m_Stream->Add(k_TokenUnityEngineObjectReference);
-                    m_Adapters.TrySerialize(m_Stream, ref unityEngineObject);
+                    
+                    var adapters = m_Adapters.GetEnumerator();
+
+                    while (adapters.MoveNext())
+                    {
+                        if (adapters.Current is IContravariantBinaryAdapter<UnityEngine.Object> unityObjectAdaper)
+                        {
+                            unityObjectAdaper.Serialize(new BinarySerializationContext<TValue>(this, default, value, isRoot), unityEngineObject);
+                            break;
+                        }
+                    }
+                    
                     return;
                 }
-#endif
-                
+
                 if (null != m_SerializedReferences && !value.GetType().IsValueType)
                 {
                     // At this point we don't know if an object will reference this value.
@@ -188,7 +212,7 @@ namespace Unity.Serialization.Binary
                         return;
                     }
                 }
-                
+
                 // This is a very common case. At serialize time we are serializing something that is polymorphic or an object
                 // However at deserialize time the user known the System.Type, we can avoid writing out the fully qualified type name in this case.
                 var isRootAndTypeWasGiven = isRoot && null != m_SerializedType;
@@ -203,29 +227,28 @@ namespace Unity.Serialization.Binary
                     m_Stream->Add(k_TokenNone);
                 }
             }
-            
-            if (RuntimeTypeInfoCache<TValue>.IsObjectType && !RuntimeTypeInfoCache.IsContainerType(value.GetType()))
+
+            if (TypeTraits<TValue>.IsObject && !TypeTraits.IsContainer(value.GetType()))
             {
                 BinarySerialization.WritePrimitiveBoxed(m_Stream, value, value.GetType());
             }
             else
             {
-                if (!PropertyContainer.Visit(ref value, this, out var errorCode))
+                if (!PropertyContainer.TryAccept(this, ref value, out var errorCode))
                 {
                     switch (errorCode)
                     {
-                        case VisitErrorCode.NullContainer:
+                        case VisitReturnCode.NullContainer:
                             throw new ArgumentNullException(nameof(value));
-                        case VisitErrorCode.InvalidContainerType:
+                        case VisitReturnCode.InvalidContainerType:
                             throw new InvalidContainerTypeException(value.GetType());
-                        case VisitErrorCode.MissingPropertyBag:
+                        case VisitReturnCode.MissingPropertyBag:
                             throw new MissingPropertyBagException(value.GetType());
                         default:
-                            throw new Exception($"Unexpected {nameof(VisitErrorCode)}=[{errorCode}]");
+                            throw new Exception($"Unexpected {nameof(VisitReturnCode)}=[{errorCode}]");
                     }
                 }
             }
         }
     }
 }
-#endif

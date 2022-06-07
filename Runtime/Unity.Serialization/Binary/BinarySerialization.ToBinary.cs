@@ -1,7 +1,5 @@
-#if !NET_DOTS
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Properties;
-using Unity.Properties.Internal;
 
 namespace Unity.Serialization.Binary
 {
@@ -18,20 +16,19 @@ namespace Unity.Serialization.Binary
         {
             var container = new PropertyWrapper<T>(value);
 
-            var context = parameters.Context ?? (parameters.RequiresThreadSafety ? new BinarySerializationContext() : GetSharedContext());
-            var visitor = context.GetBinaryPropertyWriter();
+            var state = parameters.State ?? (parameters.RequiresThreadSafety ? new BinarySerializationState() : GetSharedState());
+            var visitor = state.GetBinaryPropertyWriter();
             
             visitor.SetStream(stream);
             visitor.SetSerializedType(parameters.SerializedType);
             visitor.SetDisableRootAdapters(parameters.DisableRootAdapters);
             visitor.SetGlobalAdapters(GetGlobalAdapters());
             visitor.SetUserDefinedAdapters(parameters.UserDefinedAdapters);
-            visitor.SetSerializedReferences(parameters.DisableSerializedReferences ? default : context.GetSerializedReferences());
+            visitor.SetSerializedReferences(parameters.DisableSerializedReferences ? default : state.GetSerializedReferences());
             
-            using (visitor.Lock()) PropertyContainer.Visit(ref container, visitor);
+            using (visitor.Lock()) PropertyContainer.Accept(visitor, ref container);
             
-            if (null == parameters.Context && !parameters.DisableSerializedReferences) context.GetSerializedReferences().Clear();
+            if (null == parameters.State && !parameters.DisableSerializedReferences) state.GetSerializedReferences().Clear();
         }
     }
 }
-#endif

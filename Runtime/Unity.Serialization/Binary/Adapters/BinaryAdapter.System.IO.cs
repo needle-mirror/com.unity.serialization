@@ -1,41 +1,38 @@
-#if !NET_DOTS
 using System.IO;
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections.LowLevel.Unsafe.NotBurstCompatible;
 
-namespace Unity.Serialization.Binary.Adapters
+namespace Unity.Serialization.Binary
 {
     unsafe partial class BinaryAdapter :
         IBinaryAdapter<DirectoryInfo>,
         IBinaryAdapter<FileInfo>
     {
-        void IBinaryAdapter<DirectoryInfo>.Serialize(UnsafeAppendBuffer* writer, DirectoryInfo value)
+        void IBinaryAdapter<DirectoryInfo>.Serialize(in BinarySerializationContext<DirectoryInfo> context, DirectoryInfo value)
         {
-            if (null == value) 
-                writer->AddNBC("null");
-            else 
-                writer->AddNBC(value.GetRelativePath());
+            if (null == value)
+                context.Writer->AddNBC("null");
+            else
+                context.Writer->AddNBC(value.GetRelativePath());
         }
 
-        DirectoryInfo IBinaryAdapter<DirectoryInfo>.Deserialize(UnsafeAppendBuffer.Reader* reader)
+        DirectoryInfo IBinaryAdapter<DirectoryInfo>.Deserialize(in BinaryDeserializationContext<DirectoryInfo> context)
         {
-            reader->ReadNextNBC(out string str);
+            context.Reader->ReadNextNBC(out var str);
             return str.Equals("null") ? null : new DirectoryInfo(str);
         }
 
-        void IBinaryAdapter<FileInfo>.Serialize(UnsafeAppendBuffer* writer, FileInfo value)
+        void IBinaryAdapter<FileInfo>.Serialize(in BinarySerializationContext<FileInfo> context, FileInfo value)
         {
-            if (null == value) 
-                writer->AddNBC("null");
-            else 
-                writer->AddNBC(value.GetRelativePath());
+            if (null == value)
+                context.Writer->AddNBC("null");
+            else
+                context.Writer->AddNBC(value.GetRelativePath());
         }
 
-        FileInfo IBinaryAdapter<FileInfo>.Deserialize(UnsafeAppendBuffer.Reader* reader)
+        FileInfo IBinaryAdapter<FileInfo>.Deserialize(in BinaryDeserializationContext<FileInfo> context)
         {
-            reader->ReadNextNBC(out string str);
+            context.Reader->ReadNextNBC(out var str);
             return str.Equals("null") ? null : new FileInfo(str);
         }
     }
 }
-#endif

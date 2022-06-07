@@ -6,19 +6,19 @@ namespace Unity.Serialization.Tests
     [TestFixture]
     partial class SerializationTestFixture
     {
-        abstract class BaseClassWithGenericField<T>
+        internal abstract class BaseClassWithGenericField<T>
         {
             public T BaseValue;
         }
     
-        class ClassWithMultipleGenerics<T, V> : BaseClassWithGenericField<V>
+        internal class ClassWithMultipleGenerics<T, V> : BaseClassWithGenericField<V>
         {
             public T FirstGeneric;
             public V SecondGeneric;
         }
         
         [GeneratePropertyBag]
-        class ClassWithMultipleLevelsOfGenerics : ClassWithMultipleGenerics<int, float>
+        internal class ClassWithMultipleLevelsOfGenerics : ClassWithMultipleGenerics<int, float>
         {
         }
 

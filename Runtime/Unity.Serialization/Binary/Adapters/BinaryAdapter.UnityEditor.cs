@@ -1,32 +1,31 @@
 #if UNITY_EDITOR
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections.LowLevel.Unsafe.NotBurstCompatible;
 
-namespace Unity.Serialization.Binary.Adapters
+namespace Unity.Serialization.Binary
 {
     unsafe partial class BinaryAdapter : IBinaryAdapter
         , IBinaryAdapter<UnityEditor.GUID>
         , IBinaryAdapter<UnityEditor.GlobalObjectId>
     {
-        void IBinaryAdapter<UnityEditor.GUID>.Serialize(UnsafeAppendBuffer* writer, UnityEditor.GUID value)
+        void IBinaryAdapter<UnityEditor.GUID>.Serialize(in BinarySerializationContext<UnityEditor.GUID> context, UnityEditor.GUID value)
         {
-            writer->AddNBC(value.ToString());
+            context.Writer->AddNBC(value.ToString());
         }
 
-        UnityEditor.GUID IBinaryAdapter<UnityEditor.GUID>.Deserialize(UnsafeAppendBuffer.Reader* reader)
+        UnityEditor.GUID IBinaryAdapter<UnityEditor.GUID>.Deserialize(in BinaryDeserializationContext<UnityEditor.GUID> context)
         {
-            reader->ReadNextNBC(out string str);
+            context.Reader->ReadNextNBC(out var str);
             return UnityEditor.GUID.TryParse(str, out var value) ? value : default;
         }
 
-        void IBinaryAdapter<UnityEditor.GlobalObjectId>.Serialize(UnsafeAppendBuffer* writer, UnityEditor.GlobalObjectId value)
+        void IBinaryAdapter<UnityEditor.GlobalObjectId>.Serialize(in BinarySerializationContext<UnityEditor.GlobalObjectId> context, UnityEditor.GlobalObjectId value)
         {
-            writer->AddNBC(value.ToString());
+            context.Writer->AddNBC(value.ToString());
         }
-        
-        UnityEditor.GlobalObjectId IBinaryAdapter<UnityEditor.GlobalObjectId>.Deserialize(UnsafeAppendBuffer.Reader* reader)
+
+        UnityEditor.GlobalObjectId IBinaryAdapter<UnityEditor.GlobalObjectId>.Deserialize(in BinaryDeserializationContext<UnityEditor.GlobalObjectId> context)
         {
-            reader->ReadNextNBC(out string str);
+            context.Reader->ReadNextNBC(out var str);
             return UnityEditor.GlobalObjectId.TryParse(str, out var value) ? value : default;
         }
     }

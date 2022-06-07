@@ -5,15 +5,15 @@ using UnityEngine;
 namespace Unity.Serialization.Json.Tests
 {
     [TestFixture]
-    class JsonStandardValidatorTests
+    partial class JsonValidatorTests
     {
         [Test]
         [TestCase("{}", true, JsonType.EOF, JsonType.EOF, 1, 3)]
         [TestCase("\n{\n \t}", true, JsonType.EOF, JsonType.EOF, 3, 4)]
         [TestCase("{", false, JsonType.EndObject | JsonType.String, JsonType.EOF, 1, 2)]
-        public unsafe void JsonStandardValidator_Validate(string json, bool valid, JsonType expected, JsonType actual, int line, int character)
+        public unsafe void JsonValidatorStandard_Validate(string json, bool valid, JsonType expected, JsonType actual, int line, int character)
         {
-            using (var validator = new JsonStandardValidator(Allocator.TempJob))
+            using (var validator = new JsonValidator(JsonValidationType.Standard, Allocator.TempJob))
             {
                 fixed (char* ptr = json)
                 {
@@ -31,9 +31,9 @@ namespace Unity.Serialization.Json.Tests
         // Tests streaming sliced input
         [Test]
         [TestCase(@"{""fo|o"":|t|ru|e}", true)]
-        public unsafe void JsonStandardValidator_Validate_Parts(string parts, bool valid)
+        public unsafe void JsonValidatorStandard_Validate_Parts(string parts, bool valid)
         {
-            using (var validator = new JsonStandardValidator(Allocator.TempJob))
+            using (var validator = new JsonValidator(JsonValidationType.Standard, Allocator.TempJob))
             {
                 foreach (var json in parts.Split('|'))
                 {
@@ -61,9 +61,9 @@ namespace Unity.Serialization.Json.Tests
         [TestCase(@"{""test"": 1e5.0}", false)]
         [TestCase(@"{""test"": --42}", false)]
         [TestCase(@"{""test"": -3.814697E-06}", true)]
-        public unsafe void JsonStandardValidator_Validate_Numbers(string json, bool valid)
+        public unsafe void JsonValidatorStandard_Validate_Numbers(string json, bool valid)
         {
-            using (var validator = new JsonStandardValidator(Allocator.TempJob))
+            using (var validator = new JsonValidator(JsonValidationType.Standard, Allocator.TempJob))
             {
                 fixed (char* ptr = json)
                 {
@@ -82,9 +82,9 @@ namespace Unity.Serialization.Json.Tests
         [TestCase(@"{""test"": naa}", false)]
         [TestCase(@"{""test"": naan}", false)]
         [TestCase(@"{""test"": nann}", false)]
-        public unsafe void JsonStandardValidator_Validate_NaN(string json, bool valid)
+        public unsafe void JsonValidatorStandard_Validate_NaN(string json, bool valid)
         {
-            using (var validator = new JsonStandardValidator(Allocator.TempJob))
+            using (var validator = new JsonValidator(JsonValidationType.Standard, Allocator.TempJob))
             {
                 fixed (char* ptr = json)
                 {
@@ -102,9 +102,9 @@ namespace Unity.Serialization.Json.Tests
         [TestCase(@"{""test"": nu}", false)]
         [TestCase(@"{""test"": nul}", false)]
         [TestCase(@"{""test"": nulll}", false)]
-        public unsafe void JsonStandardValidator_Validate_Null(string json, bool valid)
+        public unsafe void JsonValidatorStandard_Validate_Null(string json, bool valid)
         {
-            using (var validator = new JsonStandardValidator(Allocator.TempJob))
+            using (var validator = new JsonValidator(JsonValidationType.Standard, Allocator.TempJob))
             {
                 fixed (char* ptr = json)
                 {
@@ -120,9 +120,9 @@ namespace Unity.Serialization.Json.Tests
         [TestCase(@"{""test"": -Infinity}", true)]
         [TestCase(@"{""test"": inf}", false)]
         [TestCase(@"{""test"": -inf}", false)]
-        public unsafe void JsonStandardValidator_Validate_Infinity(string json, bool valid)
+        public unsafe void JsonValidatorStandard_Validate_Infinity(string json, bool valid)
         {
-            using (var validator = new JsonStandardValidator(Allocator.TempJob))
+            using (var validator = new JsonValidator(JsonValidationType.Standard, Allocator.TempJob))
             {
                 fixed (char* ptr = json)
                 {

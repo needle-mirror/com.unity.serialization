@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using Unity.Properties;
@@ -9,7 +8,7 @@ namespace Unity.Serialization.Tests
     partial class SerializationTestFixture
     {
         [GeneratePropertyBag]
-        class ClassWithReadOnlyValueType
+        internal class ClassWithReadOnlyValueType
         {
             public readonly int Value;
             public ClassWithReadOnlyValueType() { }
@@ -17,37 +16,39 @@ namespace Unity.Serialization.Tests
         }
 
         [GeneratePropertyBag]
-        class ClassWithReadOnlyObject
+        internal class ClassWithReadOnlyObject
         {
             public readonly object Value;
             public ClassWithReadOnlyObject() { }
             public ClassWithReadOnlyObject(object value) => Value = value;
         }
 
-        readonly struct ReadOnlyStruct
+        [GeneratePropertyBag]
+        internal readonly struct ReadOnlyStruct
         {
             public readonly int Value;
             public ReadOnlyStruct(int value) => Value = value;
         }
 
-        class ClassWithGenericField<T>
+        internal class ClassWithGenericField<T>
         {
             public T Value;
         }
 
         [GeneratePropertyBag]
-        class ClassWithReadOnlyGenericType : ClassWithGenericField<ReadOnlyStruct>
+        internal class ClassWithReadOnlyGenericType : ClassWithGenericField<ReadOnlyStruct>
         {
         }
 
         [GeneratePropertyBag]
-        class ClassWithReadOnlyList
+        internal class ClassWithReadOnlyList
         {
             [CreateProperty] readonly List<int> m_List = new List<int>();
             public List<int> List => m_List;
         }
 
-        class ClassWithReadOnlyPolymorphic
+        [GeneratePropertyBag]
+        internal class ClassWithReadOnlyPolymorphic
         {
             public readonly IContainerInterface Value = new ClassDerivedA();
             public ClassWithReadOnlyPolymorphic() { }

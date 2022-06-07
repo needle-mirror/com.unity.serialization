@@ -1,9 +1,7 @@
 using System;
 
-#if !NET_DOTS
 using System.Runtime.Serialization;
 using System.Security.Permissions;
-#endif
 
 namespace Unity.Serialization.Json
 {
@@ -43,7 +41,6 @@ namespace Unity.Serialization.Json
         {
         }
         
-#if !NET_DOTS
         /// <summary>
         /// Initializes a new instance of the <see cref="InvalidJsonException" /> class with serialized data.
         /// </summary>
@@ -74,6 +71,5 @@ namespace Unity.Serialization.Json
             info.AddValue(nameof(Character), Character);
             base.GetObjectData(info, context);
         }
-#endif
     }
 }

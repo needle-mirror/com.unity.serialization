@@ -1,11 +1,8 @@
-#if !NET_DOTS
 using System;
 using System.Collections.Generic;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections.LowLevel.Unsafe.NotBurstCompatible;
 using Unity.Properties;
-using Unity.Properties.Internal;
-using Unity.Serialization.Binary.Adapters;
 
 namespace Unity.Serialization.Binary
 {
@@ -23,66 +20,41 @@ namespace Unity.Serialization.Binary
         BinaryAdapterCollection m_Adapters;
         SerializedReferences m_SerializedReferences;
 
+        internal UnsafeAppendBuffer.Reader* Reader => m_Stream;
+
         public void SetStream(UnsafeAppendBuffer.Reader* stream)
-        {
-            m_Stream = stream;
-        }
-        
-        public void SetSerializedType(Type type) 
+            => m_Stream = stream;
+
+        public void SetSerializedType(Type type)
             => m_SerializedType = type;
-        
-        public void SetDisableRootAdapters(bool disableRootAdapters) 
+
+        public void SetDisableRootAdapters(bool disableRootAdapters)
             => m_DisableRootAdapters = disableRootAdapters;
-        
-        public void SetGlobalAdapters(List<IBinaryAdapter> adapters) 
-            => m_Adapters.GlobalAdapters = adapters;
-        
-        public void SetUserDefinedAdapters(List<IBinaryAdapter> adapters) 
-            => m_Adapters.UserDefinedAdapters = adapters;
-        
+
+        public void SetGlobalAdapters(List<IBinaryAdapter> adapters)
+            => m_Adapters.Global = adapters;
+
+        public void SetUserDefinedAdapters(List<IBinaryAdapter> adapters)
+            => m_Adapters.UserDefined = adapters;
+
         public void SetSerializedReferences(SerializedReferences serializedReferences)
             => m_SerializedReferences = serializedReferences;
 
         public BinaryPropertyReader()
         {
-            m_Adapters.InternalAdapter = this;
+            m_Adapters.Internal = this;
         }
 
         void IPropertyBagVisitor.Visit<TContainer>(IPropertyBag<TContainer> properties, ref TContainer container)
         {
             m_SerializedReferences?.AddDeserializedReference(container);
 
-            if (properties is IPropertyList<TContainer> collection)
+            foreach (var property in properties.GetProperties(ref container))
             {
-                // no boxing
-                foreach (var property in collection.GetProperties(ref container))
-                {
-#if !UNITY_DOTSRUNTIME
-                    if (property.HasAttribute<NonSerializedAttribute>())
-                        continue;
-#endif
-                    
-                    if (property.HasAttribute<DontSerializeAttribute>())
-                        continue;
+                if (PropertyChecks.IsPropertyExcludedFromSerialization(property))
+                    continue;
 
-                    ((IPropertyAccept<TContainer>) property).Accept(this, ref container);
-                }
-            }
-            else
-            {
-                // boxing
-                foreach (var property in properties.GetProperties(ref container))
-                {
-#if !UNITY_DOTSRUNTIME
-                    if (property.HasAttribute<NonSerializedAttribute>())
-                        continue;
-#endif
-                    
-                    if (property.HasAttribute<DontSerializeAttribute>())
-                        continue;
-
-                    ((IPropertyAccept<TContainer>) property).Accept(this, ref container);
-                }
+                property.Accept(this, ref container);
             }
         }
 
@@ -115,7 +87,7 @@ namespace Unity.Serialization.Binary
 
             container.Clear();
             var count = m_Stream->ReadNext<int>();
-            
+
             for (var i = 0; i < count; i++)
             {
                 container.Add(ReadValue<TValue>());
@@ -128,7 +100,7 @@ namespace Unity.Serialization.Binary
 
             container.Clear();
             var count = m_Stream->ReadNext<int>();
-            
+
             for (var i = 0; i < count; i++)
             {
                 container.Add(ReadValue<TKey>(), ReadValue<TValue>());
@@ -139,7 +111,7 @@ namespace Unity.Serialization.Binary
         {
             var value = property.GetValue(ref container);
             var isRoot = property is IPropertyWrapper;
-            
+
             ReadValue(ref value, isRoot);
 
             if (!property.IsReadOnly)
@@ -159,27 +131,47 @@ namespace Unity.Serialization.Binary
             return value;
         }
 
-        void ReadValue<TValue>(ref TValue value, bool isRoot = false)
+        internal void ReadValue<TValue>(ref TValue value, bool isRoot = false)
         {
-            var runAdapters = !(isRoot && m_DisableRootAdapters);
-            
-            if (runAdapters && m_Adapters.TryDeserialize(m_Stream, ref value))
+            if (!(isRoot && m_DisableRootAdapters))
+                ReadValueWithAdapters(ref value, m_Adapters.GetEnumerator(), isRoot);
+            else
+                ReadValueWithoutAdapters(ref value, true);
+        }
+
+        internal void ReadValueWithAdapters<TValue>(ref TValue value, BinaryAdapterCollection.Enumerator adapters, bool isRoot)
+        {
+            while (adapters.MoveNext())
             {
-                return;
+                switch (adapters.Current)
+                {
+                    case IBinaryAdapter<TValue> typed:
+                        value = typed.Deserialize(new BinaryDeserializationContext<TValue>(this, adapters, isRoot));
+                        return;
+                    case IContravariantBinaryAdapter<TValue> typedContravariant:
+                        // NOTE: Boxing
+                        value = (TValue) typedContravariant.Deserialize((IBinaryDeserializationContext) new BinaryDeserializationContext<TValue>(this, adapters, isRoot));
+                        return;
+                }
             }
-            
-            if (RuntimeTypeInfoCache<TValue>.IsEnum)
+
+            ReadValueWithoutAdapters(ref value, isRoot);
+        }
+
+        internal void ReadValueWithoutAdapters<TValue>(ref TValue value, bool isRoot)
+        {
+            if (TypeTraits<TValue>.IsEnum)
             {
                 BinarySerialization.ReadPrimitiveUnsafe(m_Stream, ref value, Enum.GetUnderlyingType(typeof(TValue)));
                 return;
             }
-            
+
             var token = default(byte);
-            
-            if (RuntimeTypeInfoCache<TValue>.CanBeNull)
+
+            if (TypeTraits<TValue>.CanBeNull)
             {
                 token = m_Stream->ReadNext<byte>();
-                
+
                 switch (token)
                 {
                     case k_TokenNull:
@@ -193,30 +185,30 @@ namespace Unity.Serialization.Binary
                         return;
                 }
             }
-            
-            if (RuntimeTypeInfoCache<TValue>.IsNullable)
+
+            if (TypeTraits<TValue>.IsNullable)
             {
                 var underlyingType = Nullable.GetUnderlyingType(typeof(TValue));
 
-                if (RuntimeTypeInfoCache.IsContainerType(underlyingType))
+                if (TypeTraits.IsContainer(underlyingType))
                 {
                     m_SerializedTypeProviderSerializedType = underlyingType;
                     DefaultTypeConstruction.Construct(ref value, this);
 
                     var underlyingValue = Convert.ChangeType(value, underlyingType);
 
-                    if (!PropertyContainer.Visit(ref underlyingValue, this, out var errorCode))
+                    if (!PropertyContainer.TryAccept(this, ref underlyingValue, out var errorCode))
                     {
                         switch (errorCode)
                         {
-                            case VisitErrorCode.NullContainer:
+                            case VisitReturnCode.NullContainer:
                                 throw new ArgumentNullException(nameof(value));
-                            case VisitErrorCode.InvalidContainerType:
+                            case VisitReturnCode.InvalidContainerType:
                                 throw new InvalidContainerTypeException(value.GetType());
-                            case VisitErrorCode.MissingPropertyBag:
+                            case VisitReturnCode.MissingPropertyBag:
                                 throw new MissingPropertyBagException(value.GetType());
                             default:
-                                throw new Exception($"Unexpected {nameof(VisitErrorCode)}=[{errorCode}]");
+                                throw new Exception($"Unexpected {nameof(VisitReturnCode)}=[{errorCode}]");
                         }
                     }
 
@@ -227,19 +219,25 @@ namespace Unity.Serialization.Binary
                 {
                     BinarySerialization.ReadPrimitiveBoxed(m_Stream, ref value, Nullable.GetUnderlyingType(typeof(TValue)));
                 }
-
                 return;
             }
 
-#if !UNITY_DOTSRUNTIME
-            if (runAdapters && token == k_TokenUnityEngineObjectReference)
+            if (!(isRoot && m_DisableRootAdapters) && token == k_TokenUnityEngineObjectReference)
             {
-                var unityEngineObject = default(UnityEngine.Object);
-                m_Adapters.TryDeserialize(m_Stream, ref unityEngineObject);
-                value = (TValue) (object) unityEngineObject;
+                var adapters = m_Adapters.GetEnumerator();
+
+                while (adapters.MoveNext())
+                {
+                    if (adapters.Current is IContravariantBinaryAdapter<UnityEngine.Object> unityObjectAdaper)
+                    {
+                        // Special path for polymorphic unity object references.
+                        value = (TValue) unityObjectAdaper.Deserialize(new BinaryDeserializationContext<TValue>(this, default, isRoot));
+                        break;
+                    }
+                }
+                
                 return;
             }
-#endif
 
             if (token == k_TokenPolymorphic)
             {
@@ -272,32 +270,32 @@ namespace Unity.Serialization.Binary
                 // If we have a user provided root type pass it to the type construction.
                 m_SerializedTypeProviderSerializedType = isRoot ? m_SerializedType : null;
             }
-            
+
             DefaultTypeConstruction.Construct(ref value, this);
 
-            if (RuntimeTypeInfoCache<TValue>.IsObjectType && !RuntimeTypeInfoCache.IsContainerType(value.GetType()))
+            if (TypeTraits<TValue>.IsObject && !TypeTraits.IsContainer(value.GetType()))
             {
                 BinarySerialization.ReadPrimitiveBoxed(m_Stream, ref value, value.GetType());
             }
             else
             {
-                if (!PropertyContainer.Visit(ref value, this, out var errorCode))
+                if (!PropertyContainer.TryAccept(this, ref value, out var errorCode))
                 {
                     switch (errorCode)
                     {
-                        case VisitErrorCode.NullContainer:
+                        case VisitReturnCode.NullContainer:
                             throw new ArgumentNullException(nameof(value));
-                        case VisitErrorCode.InvalidContainerType:
+                        case VisitReturnCode.InvalidContainerType:
                             throw new InvalidContainerTypeException(value.GetType());
-                        case VisitErrorCode.MissingPropertyBag:
+                        case VisitReturnCode.MissingPropertyBag:
                             throw new MissingPropertyBagException(value.GetType());
                         default:
-                            throw new Exception($"Unexpected {nameof(VisitErrorCode)}=[{errorCode}]");
+                            throw new Exception($"Unexpected {nameof(VisitReturnCode)}=[{errorCode}]");
                     }
                 }
             }
         }
-        
+
         Type m_SerializedTypeProviderSerializedType;
 
         Type ISerializedTypeProvider.GetSerializedType()
@@ -319,4 +317,3 @@ namespace Unity.Serialization.Binary
         }
     }
 }
-#endif

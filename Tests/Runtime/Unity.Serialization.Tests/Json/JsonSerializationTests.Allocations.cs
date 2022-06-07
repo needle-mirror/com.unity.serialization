@@ -8,13 +8,12 @@ namespace Unity.Serialization.Json.Tests
     partial class JsonSerializationTests
     {
         [TestFixture]
-        class Allocations
+        internal class Allocations
         {
             [GeneratePropertyBag]
-            struct StructWithInt32Property
+            internal struct StructWithInt32Property
             {
-                public int Int32Property { get; set; }
-                public float Float32Property { get; set; }
+                [CreateProperty] public int Int32Property { get; set; }
             }
 
             [Test]

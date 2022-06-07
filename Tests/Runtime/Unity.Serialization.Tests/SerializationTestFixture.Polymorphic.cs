@@ -1,11 +1,14 @@
 using System.Collections.Generic;
 using NUnit.Framework;
+using Unity.Properties;
 
 namespace Unity.Serialization.Tests
 {
     [TestFixture]
     partial class SerializationTestFixture
     {
+        
+        [GeneratePropertyBag]
         class ConcreteA : IBase
         {
             public List<string> List = new List<string>();
@@ -15,6 +18,7 @@ namespace Unity.Serialization.Tests
         {
         }
 
+        [GeneratePropertyBag]
         class ClassWithPolymorphicArray
         {
             public object ArrayOfInterfaces;
@@ -37,6 +41,8 @@ namespace Unity.Serialization.Tests
         [Test]
         public void ClassWithPolymorphicArray_CanBeSerializedAndDeserialized()
         {
+            PropertyBag.RegisterArray<ClassWithPolymorphicArray, IBase>();
+            
             var src = new ClassWithPolymorphicArray
             {
                 ArrayOfInterfaces = new IBase[]

@@ -1,4 +1,3 @@
-#if !NET_DOTS
 using System.IO;
 
 namespace Unity.Serialization
@@ -31,4 +30,3 @@ namespace Unity.Serialization
         }
     }
 }
-#endif

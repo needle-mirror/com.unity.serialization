@@ -1,4 +1,3 @@
-#if !NET_DOTS
 using System;
 using Unity.Properties;
 
@@ -57,7 +56,7 @@ namespace Unity.Serialization.Json
             }
         }
         
-        protected readonly struct PropertyScope : IDisposable
+        internal readonly struct PropertyScope : IDisposable
         {
             readonly JsonPropertyVisitor m_Visitor;
             readonly IProperty m_Property;
@@ -90,7 +89,7 @@ namespace Unity.Serialization.Json
         /// </summary>
         /// <param name="property">The current container property being visited.</param>
         /// <returns>A disposable scope.</returns>
-        protected PropertyScope CreatePropertyScope(IProperty property)
+        internal PropertyScope CreatePropertyScope(IProperty property)
             => new PropertyScope(this, property);
 
         /// <summary>
@@ -101,4 +100,3 @@ namespace Unity.Serialization.Json
             => new LockScope(this);
     }
 }
-#endif

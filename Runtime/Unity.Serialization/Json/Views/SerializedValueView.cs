@@ -9,8 +9,10 @@ namespace Unity.Serialization.Json
     /// </summary>
     public readonly struct SerializedValueView : ISerializedView
     {
-        readonly PackedBinaryStream m_Stream;
-        readonly Handle m_Handle;
+        // ReSharper disable InconsistentNaming
+        internal readonly PackedBinaryStream m_Stream;
+        internal readonly Handle m_Handle;
+        // ReSharper restore InconsistentNaming
 
         internal SerializedValueView(PackedBinaryStream stream, Handle handle)
         {
@@ -58,6 +60,20 @@ namespace Unity.Serialization.Json
             }
 
             return token.Type == TokenType.String || token.Type == TokenType.Primitive;
+        }
+
+        /// <summary>
+        /// Returns true if the value represents a null value token.
+        /// </summary>
+        /// <returns><see langword="true"/> if the value represents a null value token.</returns>
+        public bool IsNull()
+        {
+            var token = m_Stream.GetToken(m_Handle);
+
+            if (token.Type != TokenType.Primitive)
+                return false;
+
+            return AsPrimitiveView().IsNull();
         }
 
         /// <summary>
@@ -158,7 +174,6 @@ namespace Unity.Serialization.Json
             return AsPrimitiveView().AsFloat();
         }
 
-#if !NET_DOTS
         /// <summary>
         /// Reinterprets the value as a double.
         /// </summary>
@@ -167,7 +182,6 @@ namespace Unity.Serialization.Json
         {
             return AsPrimitiveView().AsDouble();
         }
-#endif
         
         /// <summary>
         /// Reinterprets the value as a bool.

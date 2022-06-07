@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using NUnit.Framework;
@@ -10,7 +9,7 @@ namespace Unity.Serialization.Tests
     partial class SerializationTestFixture
     {
         [GeneratePropertyBag]
-        class Node : IEnumerable<Node>
+        internal class Node : IEnumerable<Node>
         {
             [CreateProperty] string m_Name;
             [CreateProperty] Node m_Parent;
