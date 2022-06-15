@@ -1,31 +1,32 @@
 {
   "name": "com.unity.serialization",
   "displayName": "Serialization",
-  "version": "2.0.0-exp.11",
+  "version": "2.0.0-exp.13",
   "unity": "2021.3",
   "unityRelease": "0f1",
-  "description": "The Serialization package provides a high level API serialization and deserialization.",
+  "description": "Use Unity's Serialization to serialize and deserialize from/to JSON and Binary formats.",
   "keywords": [
     "serialization",
-    "dots",
-    "json"
+    "json",
+    "binary",
+    "unity"
   ],
   "dependencies": {
     "com.unity.collections": "1.1.0",
     "com.unity.burst": "1.6.1",
     "com.unity.jobs": "0.11.0-preview.6",
-    "com.unity.properties": "2.0.0-exp.11",
+    "com.unity.properties": "2.0.0-exp.13",
     "com.unity.test-framework.performance": "2.8.0-preview"
   },
   "_upm": {
-    "changelog": "### Added\n* Add `SerializeValue` API for `SerializationContext` objects for serialization re-entry.\n* Add `DeserializeValue` API for `SerializationContext` objects for serialization re-entry.\n* JSON serialization now supports simple json validation as an option.\n* Add `JsonWriter.WriteValue` override for bool values.\n* `JsonSerialization.ToJson` supports serializing `SerializedObjectView` and `SerializedArrayView`.\n\n### Changed\n* Updated minimum Unity version to `2021.3`.\n* Updated `com.unity.properties` to version `2.0.0-exp.11`.\n* Updated `com.unity.collections` to version `1.1.0`.\n* Updated `com.unity.burst` to version `1.6.1`.\n* Updated `com.unity.jobs` to version `0.11.0-preview.6`.\n* Updated `com.unity.test-framework.performance` to version `2.8.0-preview`.\n* ***Breaking change*** `IJsonAdapter` now pass a context object (`JsonSerializationContext` and `JsonDeserializationContext`). These context objects provide access to the underlying writer or serialized views. \n* ***Breaking change*** `IBinaryAdapter` now pass a context object (`BinarySerializationContext` and `BinaryDeserializationContext`). These context objects provide access to the underlying writer or reader.\n\n### Fixed\n* Fixed an issue where `BinarySerialization` was keeping serialized references until the next `ToBinary` call.\n* Fixed an issue where `JsonSerialization` validation was not detecting open scopes at the end of a stream.\n* JSON serialization now properly adds escape characters to `char` value `\\0`."
+    "changelog": "### Added\n* Add `SerializeValue` API for `SerializationContext` objects for serialization re-entry.\n* Add `DeserializeValue` API for `SerializationContext` objects for serialization re-entry.\n* JSON serialization now supports simple json validation as an option.\n* Add `JsonWriter.WriteValue` override for bool values.\n* `JsonSerialization.ToJson` supports serializing `SerializedObjectView` and `SerializedArrayView`.\n\n### Changed\n* Updated minimum Unity version to `2021.3`.\n* Updated `com.unity.properties` to version `2.0.0-exp.13`.\n* Updated `com.unity.collections` to version `1.1.0`.\n* Updated `com.unity.burst` to version `1.6.1`.\n* Updated `com.unity.jobs` to version `0.11.0-preview.6`.\n* Updated `com.unity.test-framework.performance` to version `2.8.0-preview`.\n* ***Breaking change*** `IJsonAdapter` now pass a context object (`JsonSerializationContext` and `JsonDeserializationContext`). These context objects provide access to the underlying writer or serialized views. \n* ***Breaking change*** `IBinaryAdapter` now pass a context object (`BinarySerializationContext` and `BinaryDeserializationContext`). These context objects provide access to the underlying writer or reader.\n\n### Fixed\n* Fixed an issue where `BinarySerialization` was keeping serialized references until the next `ToBinary` call.\n* Fixed an issue where `JsonSerialization` validation was not detecting open scopes at the end of a stream.\n* JSON serialization now properly adds escape characters to `char` value `\\0`."
   },
   "upmCi": {
-    "footprint": "3d07f15089ca99ac3454622b8c278f3add90897e"
+    "footprint": "5645c79ae9460332bd5c908e37909db21af56fb7"
   },
   "repository": {
     "url": "https://github.cds.internal.unity3d.com/unity/com.unity.properties.git",
     "type": "git",
-    "revision": "ed6d8a6ff20aad284e3798f0452025d3b922bf6c"
+    "revision": "733b021f5e5b986dad4243f1a65993aec291f777"
   }
 }

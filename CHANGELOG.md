@@ -4,7 +4,7 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [2.0.0] - 2022-02-09
+## [2.0.0] - 2022-06-14
 
 ### Added
 * Add `SerializeValue` API for `SerializationContext` objects for serialization re-entry.
@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 * Updated minimum Unity version to `2021.3`.
-* Updated `com.unity.properties` to version `2.0.0-exp.11`.
+* Updated `com.unity.properties` to version `2.0.0-exp.13`.
 * Updated `com.unity.collections` to version `1.1.0`.
 * Updated `com.unity.burst` to version `1.6.1`.
 * Updated `com.unity.jobs` to version `0.11.0-preview.6`.

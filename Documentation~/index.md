@@ -18,7 +18,7 @@ In order for the serialization package to traverse types they must first be desc
 
 By default _public field members_ and members with the `Unity.Properties.CreatePropertyAttribute` are serialized.
 
-```csharp
+```c#
 [GeneratePropertyBag]
 struct Data
 {
@@ -115,7 +115,7 @@ var deserializedPlayer = JsonSerialization.FromJson<Player>(json);
 
 ### Implementing Adapters for a Type
 
-The serialization system can be extend through the use of adapters. An adapter lets you specify how a type should be serialized and deserialized.
+The json serialization system can be extended through the use of adapters. An adapter lets you specify how a type should be serialized and deserialized.
 
 ```c#
 // e.g. We have a manager for items in our game. It handles saving and loading from a database.
@@ -165,6 +165,36 @@ var parameters = new JsonSerializationParameters
 };
 
 var json = JsonSerialization.ToJson(player, parameters);
+```
+
+Adapters pass a context object which can be used to continue visitation (with or without other adapters) or even call back into the default serialization paths. The context object gives access to some high level APIs.
+
+`context.ContinueVisitation()` - This will continue visitation as normal running any other adapters interested in the same type (The order is determined by registration)
+`context.ContinueVisitationWithoutAdapters()` - This will continue visitation as normal without running any other adapters.
+`context.SerializeValue<T>(T value)` - This will enable writing of ANY value using the underlying serialization system. This can be used to convert a value to another representation automatically or just write something else. This serialize call will also invoke other adapters for the specified type or nested types.
+
+e.g.
+```c#
+void Serialize(in JsonSerializationContext<T> context, T value)
+{
+    var otherType = new MyOtherType(value);
+    context.SerializeValue(otherType);
+}
+```
+
+`context.SerializeValue<T>(string key, T value)` - This will enable writing of ANY value with a key. This can be used to construct entirely new objects dynamically during serialization.
+
+e.g.
+```c#
+void Serialize(in JsonSerializationContext<T> context, T value)
+{
+    using (context.Writer.WriteObjectScope())
+    {
+        context.SerializeValue("a", value.a);
+        context.SerializeValue("b", value.b);
+        context.SerializeValue("c", value.c);
+    }
+}
 ```
 
 ### Implementing Migration for a Type
@@ -353,4 +383,78 @@ using (var reader = new SerializedObjectReader(stream))
 ```
 
 # Binary
-Documentation coming soon. 
+The binary serialization provides a simple way to read and write to a stream of bytes. Binary serialization only works in an `unsafe` context and relies on `Unity.Collections.LowLevel.Unsafe.UnsafeAppendBuffer`. 
+
+### Getting Started
+
+The `BinarySerialization` API is the entry point for converting .NET objects to a stream of bytes and back.
+
+```c#
+class Player 
+{
+    public string Name;
+    public int Health;
+}
+
+var player = new Player 
+{  
+    Name = "Bob",  
+    Health = 100
+};
+
+using var stream = new UnsafeAppendBuffer(16, 8, Allocator.Temp);
+BinarySerialization.ToBinary(&stream, value);
+
+var reader = stream.AsReader();
+var deserializedPlayer = BinarySerialization.FromBinary<Player>(&reader);
+```
+### Implementing Adapters for a Type
+
+The binary serialization system can be extended through the use of adapters. An adapter lets you specify how a type should be serialized and deserialized.
+
+```c#
+// e.g. We have a manager for items in our game. It handles saving and loading from a database.
+// We instead want to write out just the `Id` of the item we have.
+
+class ItemAdapter : IBinaryAdapter<Item>  
+{  
+    void IBinaryAdapter<Item>.Serialize(in BinarySerializationContext<Item> context, Item value) 
+        => context.Writer->Add(ItemManager.GetItemIdFromName(value.Name)); 
+  
+    Item IBinaryAdapter<Item>.Deserialize(in BinaryDeserializationContext<Item> context)  
+        => ItemManager.CreateItemFromId(context.Reader->ReadNext<int>());  
+}
+```
+
+_Note: Unity.Serialization also supports **contravariant** adapters. See `Unity.Serialization.IContravariantBinaryAdapter<T>`_
+
+Adapters can be registered in one of two ways:
+
+1) **Global Adapter** - This will be used by all calls to serialization and deserialization. Use this if you fully own the types and the adapter is stateless.
+```c#
+BinarySerialization.AddGlobalAdapter(new ItemAdapter());
+```
+
+2) **User Defined Adapter** - This can be used on a per call basis. Use this if the adapter has state or the type needs to be handled differently depending on context.
+```c#
+var parameters = new BinarySerializationParameters  
+{  
+    UserDefinedAdapters = new List<IBinaryAdapter> { new ItemAdapter() }  
+};
+
+BinarySerialization.ToJson(&stream, player, parameters);
+```
+Adapters pass a context object which can be used to continue visitation (with or without other adapters) or even call back into the default serialization paths. The context object gives access to some high level APIs.
+
+`context.ContinueVisitation()` - This will continue visitation as normal running any other adapters interested in the same type (The order is determined by registration)
+`context.ContinueVisitationWithoutAdapters()` - This will continue visitation as normal without running any other adapters.
+`context.SerializeValue<T>(T value)` - This will enable writing of ANY value using the underlying serialization system. This can be used to convert a value to another representation automatically or just write something else. This serialize call will also invoke other adapters for the specified type or nested types.
+
+e.g.
+```c#
+void Serialize(in BinarySerializationContext<T> context, T value)
+{
+    var otherType = new MyOtherType(value);
+    context.SerializeValue(otherType);
+}
+```
