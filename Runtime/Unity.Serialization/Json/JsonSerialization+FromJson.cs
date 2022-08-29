@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Unity.Burst;
+using Unity.Collections.LowLevel.Unsafe;
+using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Properties;
 
@@ -129,6 +132,19 @@ namespace Unity.Serialization.Json
     
     public static partial class JsonSerialization
     {
+        [BurstCompile(CompileSynchronously = true)]
+        unsafe struct ReadJob : IJob
+        {
+            public SerializedObjectReader Reader;
+            [NativeDisableUnsafePtrRestriction] public SerializedValueView* View;
+
+            public void Execute()
+            {
+                Reader.Read(out var view);
+                *View = view;
+            }
+        }
+        
         static SerializedObjectReaderConfiguration GetDefaultConfigurationForString(string json, JsonSerializationParameters parameters = default)
         {
             var configuration = SerializedObjectReaderConfiguration.Default;
@@ -217,7 +233,6 @@ namespace Unity.Serialization.Json
                 result.Throw();
             }
         }
-
         /// <summary>
         /// Deserializes from the specified json string in to an existing instance of <typeparamref name="T"/>.
         /// </summary>
@@ -238,11 +253,13 @@ namespace Unity.Serialization.Json
             {
                 fixed (char* ptr = json)
                 {
-                    using (var reader = new SerializedObjectReader(new UnsafeBuffer<char>(ptr, json.Length), GetDefaultConfigurationForString(json, parameters)))
-                    {
-                        reader.Read(out var view);
-                        return TryFromJson(view, ref container, out result, parameters);
-                    }
+                    var reader = new SerializedObjectReader(ptr, json.Length, GetDefaultConfigurationForString(json, parameters));
+                    var view = stackalloc SerializedValueView[1];
+                    new ReadJob { Reader = reader, View = view }.Run();
+                    reader.CheckAndThrowInvalidJsonException();
+                    var success = TryFromJson(view[0], ref container, out result, parameters);
+                    reader.Dispose();
+                    return success;
                 }
             }
         }
@@ -303,12 +320,14 @@ namespace Unity.Serialization.Json
         /// <typeparam name="T">The type to deserialize.</typeparam>
         /// <param name="parameters">The reader parameters to use.</param>
         /// <returns>True if the deserialization succeeded; otherwise, false.</returns>
-        public static bool TryFromJsonOverride<T>(FileInfo file, ref T container, out DeserializationResult result, JsonSerializationParameters parameters = default)
+        public unsafe static bool TryFromJsonOverride<T>(FileInfo file, ref T container, out DeserializationResult result, JsonSerializationParameters parameters = default)
         {
             using (var reader = new SerializedObjectReader(file.FullName, GetDefaultConfigurationForFile(file, parameters)))
             {
-                reader.Read(out var view);
-                return TryFromJson(view, ref container, out result, parameters);
+                var view = stackalloc SerializedValueView[1];
+                new ReadJob { Reader = reader, View = view }.Run();
+                reader.CheckAndThrowInvalidJsonException();
+                return TryFromJson(view[0], ref container, out result, parameters);
             }
         }
 
@@ -376,8 +395,6 @@ namespace Unity.Serialization.Json
                 return TryFromJson(view, ref container, out result, parameters);
             }
         }
-        
-        
 
         /// <summary>
         /// Deserializes from the specified SerializedValueView and returns a new instance of <typeparamref name="T"/>.

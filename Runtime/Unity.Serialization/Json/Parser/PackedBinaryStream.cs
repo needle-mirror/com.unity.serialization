@@ -11,6 +11,8 @@ namespace Unity.Serialization.Json
     [StructLayout(LayoutKind.Sequential)]
     struct Handle : IEquatable<Handle>
     {
+        public static readonly Handle Null = new Handle { Index = -1, Version = -1 };
+        
         public int Index;
         public int Version;
 
@@ -55,63 +57,349 @@ namespace Unity.Serialization.Json
         }
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    unsafe struct PackedBinaryStreamData
+    unsafe struct UnsafePackedBinaryStream : IDisposable
     {
+        /// <summary>
+        /// All input characters were consumes and all tokens were generated.
+        /// </summary>
+        public const int ResultSuccess = 0;
+
+        /// <summary>
+        /// The maximum depth limit has been exceeded.
+        /// </summary>
+        public const int ResultStackOverflow = -4;
+        
+        readonly Allocator m_Label;
+        
         public BinaryToken* Tokens;
         public HandleData* Handles;
-        public int TokensCapacity;
+        public int TokenCapacity;
         public int TokenNextIndex;
         public int TokenParentIndex;
 
         public byte* Buffer;
         public int BufferCapacity;
         public int BufferPosition;
-    }
-    
-    readonly unsafe struct UnsafePackedBinaryStream
-    {
-        readonly PackedBinaryStream m_PackedBinaryStream;
-        readonly BinaryToken* m_Tokens;
-        readonly byte* m_Buffer;
 
-        public UnsafePackedBinaryStream(PackedBinaryStream stream)
+        public UnsafePackedBinaryStream(int initialTokenCapacity, int initialBufferCapacity, Allocator label)
         {
-            m_PackedBinaryStream = stream;
-            m_Tokens = m_PackedBinaryStream.GetUnsafeData()->Tokens;
-            m_Buffer = m_PackedBinaryStream.GetUnsafeData()->Buffer;
+            m_Label = label;
+            
+            Tokens = (BinaryToken*) UnsafeUtility.Malloc(sizeof(BinaryToken) * initialTokenCapacity, UnsafeUtility.AlignOf<BinaryToken>(), m_Label);
+            Handles = (HandleData*) UnsafeUtility.Malloc(sizeof(HandleData) * initialTokenCapacity, UnsafeUtility.AlignOf<HandleData>(), m_Label);
+            TokenCapacity = initialTokenCapacity;
+            TokenNextIndex = 0;
+            TokenParentIndex = -1;
+
+            Buffer = (byte*) UnsafeUtility.Malloc(sizeof(byte) * initialBufferCapacity, UnsafeUtility.AlignOf<byte>(), m_Label);
+            BufferCapacity = initialBufferCapacity;
+            BufferPosition = 0;
+            
+            for (var i = 0; i < initialTokenCapacity; i++)
+            {
+                Tokens[i] = new BinaryToken
+                {
+                    HandleIndex = i
+                };
+
+                Handles[i] = new HandleData
+                {
+                    DataIndex = i,
+                    DataVersion = 1
+                };
+            }
         }
 
-        internal PackedBinaryStream AsSafe() => m_PackedBinaryStream;
+        public void Dispose()
+        {
+            UnsafeUtility.Free(Tokens, m_Label);
+            UnsafeUtility.Free(Handles, m_Label);
+            UnsafeUtility.Free(Buffer, m_Label);
 
+            Tokens = null;
+            Handles = null;
+            Buffer = null;
+        }
+
+        [BurstDiscard]
+        void CheckTokenRangeAndThrow(int index)
+        {
+            if ((uint) index >= (uint) TokenCapacity)
+                throw new IndexOutOfRangeException();
+        }
+        
+        [BurstDiscard]
+        void CheckVersionAndThrow(Handle handle, HandleData data)
+        {
+            if (handle.Version != data.DataVersion)
+                throw new InvalidOperationException("View is invalid. The underlying data has been released.");
+        }
+        
+        [BurstDiscard]
+        void CheckBufferRangeAndThrow(int length)
+        {
+            if (length > BufferPosition)
+                throw new IndexOutOfRangeException();
+        }
+        
+        internal bool IsValid(Handle handle)
+        {
+            if ((uint) handle.Index >= (uint) TokenCapacity)
+                return false;
+
+            return Handles[handle.Index].DataVersion == handle.Version;
+        }
+
+        internal BinaryToken GetToken(int tokenIndex)
+        {
+            CheckTokenRangeAndThrow(tokenIndex);
+            return Tokens[tokenIndex];
+        }
+        
+        internal int GetTokenIndex(Handle handle)
+        {
+            CheckTokenRangeAndThrow(handle.Index);
+            var data = Handles[handle.Index];
+            CheckVersionAndThrow(handle, data);
+            return data.DataIndex;
+        }
+        
+        internal BinaryToken GetToken(Handle handle)
+        {
+            CheckTokenRangeAndThrow(handle.Index);
+            var data = Handles[handle.Index];
+            CheckVersionAndThrow(handle, data);
+            return GetToken(data.DataIndex);
+        }
+        
         internal Handle GetHandle(int tokenIndex)
         {
-            var handleData = m_PackedBinaryStream.GetUnsafeData()->Handles[m_Tokens[tokenIndex].HandleIndex];
-            return new Handle {Index = m_Tokens[tokenIndex].HandleIndex, Version = handleData.DataVersion};
+            CheckTokenRangeAndThrow(tokenIndex);
+            var handleData = Handles[Tokens[tokenIndex].HandleIndex];
+            return new Handle {Index = Tokens[tokenIndex].HandleIndex, Version = handleData.DataVersion};
         }
         
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal BinaryToken GetToken(int tokenIndex) 
-            => m_Tokens[tokenIndex];
+        internal Handle GetHandle(BinaryToken token)
+        {
+            return new Handle {Index = token.HandleIndex, Version = Handles[token.HandleIndex].DataVersion };
+        }
         
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal T* GetBufferPtr<T>(int tokenIndex) where T : unmanaged
-            => (T*) (m_Buffer + m_Tokens[tokenIndex].Position);
+        internal Handle GetFirstChild(Handle handle)
+        {
+            var start = GetTokenIndex(handle);
+
+            for (var index = start + 1; index < TokenNextIndex; index++)
+            {
+                var token = GetToken(index);
+
+                if (token.Length != -1 && token.Parent == start && token.Type != TokenType.Comment)
+                {
+                    return GetHandle(token);
+                }
+            }
+
+            return Handle.Null;
+        }
         
         internal int GetFirstChildIndex(int start)
         {
-            if (m_Tokens[start].Length <= 1)
+            if (Tokens[start].Length <= 1)
                 return start + 1;
             
             for (var index = start + 1;; index++)
             {
-                var token = m_Tokens[index];
+                var token = Tokens[index];
 
                 if (token.Length != -1 && token.Parent == start && token.Type != TokenType.Comment)
                 {
                     return index;
                 }
             }
+        }
+
+        internal T* GetBufferPtr<T>(int tokenIndex) where T : unmanaged
+        {
+            CheckBufferRangeAndThrow(Tokens[tokenIndex].Position + sizeof(T));
+            return (T*)(Buffer + Tokens[tokenIndex].Position);
+        }
+        
+        internal T* GetBufferPtr<T>(Handle handle) where T : unmanaged
+        {
+            var position = GetToken(handle).Position;
+            CheckBufferRangeAndThrow(position + sizeof(T));
+            return (T*) (Buffer + position);
+        }
+        
+        internal void EnsureTokenCapacity(int newLength)
+        {
+            if (newLength <= TokenCapacity)
+                return;
+
+            var fromLength = TokenCapacity;
+
+            Tokens = Resize(Tokens, fromLength, newLength, m_Label);
+            Handles = Resize(Handles, fromLength, newLength, m_Label);
+
+            for (var index = fromLength; index < newLength; index++)
+            {
+                Tokens[index] = new BinaryToken
+                {
+                    HandleIndex = index
+                };
+
+                Handles[index] = new HandleData
+                {
+                    DataIndex = index,
+                    DataVersion = 1
+                };
+            }
+            
+            TokenCapacity = newLength;
+        }
+        
+        internal void EnsureBufferCapacity(int length)
+        {
+            if (length <= BufferCapacity)
+                return;
+
+            Buffer = Resize(Buffer, BufferPosition, length, m_Label);
+            BufferCapacity = length;
+        }
+        
+        public void Clear()
+        {
+            for (var i=0; i<TokenNextIndex; i++)
+                Handles[i].DataVersion++;
+            
+            TokenNextIndex = 0;
+            TokenParentIndex = -1;
+            BufferPosition = 0;
+        }
+
+        internal int DiscardCompleted()
+        {
+            const int kStackSize = 128;
+            
+            var stack = stackalloc int[kStackSize];
+            var sp = -1;
+
+            var index = TokenNextIndex - 1;
+
+            while (index != -1 && Tokens[index].Length == -1)
+            {
+                index = Tokens[index].Parent;
+            }
+
+            while (index != -1)
+            {
+                var token = Tokens[index];
+                var partIndex = index + 1;
+                var partCount = 1;
+
+                for (;partIndex < TokenNextIndex; partIndex++)
+                {
+                    if (Tokens[partIndex].Length == -1)
+                    {
+                        partCount++;
+                        continue;
+                    }
+
+                    break;
+                }
+
+                if (sp + partCount >= kStackSize)
+                {
+                    return ResultStackOverflow;
+                }
+
+                for (var i = partCount - 1; i >= 0; i--)
+                {
+                    stack[++sp] = index + i;
+                }
+
+                index = token.Parent;
+            }
+
+            var binaryTokenNextIndex = sp + 1;
+            var binaryBufferPosition = 0;
+
+            for (var i = 0; sp >= 0; i++, sp--)
+            {
+                index = stack[sp];
+
+                if (TokenParentIndex == index)
+                {
+                    TokenParentIndex = i;
+                }
+
+                (Tokens[i], Tokens[index]) = (Tokens[index], Tokens[i]);
+
+                // Update handle pointers
+                Handles[Tokens[i].HandleIndex].DataIndex = i;
+                Handles[Tokens[index].HandleIndex].DataIndex = index;
+                
+                var token = Tokens[i];
+
+                var length = 0;
+
+                if (index + 1 >= TokenNextIndex)
+                {
+                    length = BufferPosition - token.Position;
+                }
+                else
+                {
+                    length = Tokens[index + 1].Position - token.Position;
+                }
+
+                UnsafeUtility.MemCpy(Buffer + binaryBufferPosition, Buffer + token.Position, length);
+
+                token.Position = binaryBufferPosition;
+
+                var parentIndex = i - 1;
+                if (token.Length != -1)
+                {
+                    while (parentIndex != -1 && Tokens[parentIndex].Length == -1)
+                    {
+                        parentIndex--;
+                    }
+                }
+                token.Parent = parentIndex;
+
+                Tokens[i] = token;
+                binaryBufferPosition += length;
+            }
+
+            // Patch the lengths
+            for (int i = 0, length = binaryTokenNextIndex; i < binaryTokenNextIndex; i++)
+            {
+                var token = Tokens[i];
+
+                if (token.Length != -1)
+                {
+                    token.Length = length;
+                }
+
+                length--;
+                Tokens[i] = token;
+            }
+
+            // Invalidate all views that are outside of the collapsed range
+            for (var i = binaryTokenNextIndex; i < TokenNextIndex; i++)
+            {
+                Handles[Tokens[i].HandleIndex].DataVersion++;
+            }
+
+            BufferPosition = binaryBufferPosition;
+            TokenNextIndex = binaryTokenNextIndex;
+            return ResultSuccess;
+        }
+        
+        static T* Resize<T>(T* buffer, int fromLength, int toLength, Allocator label) where T : unmanaged
+        {
+            var tmp = (T*) UnsafeUtility.Malloc(toLength * sizeof(T), UnsafeUtility.AlignOf<T>(), label);
+            UnsafeUtility.MemCpy(tmp, buffer, fromLength * sizeof(T));
+            UnsafeUtility.Free(buffer, label);
+            return tmp;
         }
     }
 
@@ -123,224 +411,16 @@ namespace Unity.Serialization.Json
     /// </remarks>
     public unsafe struct PackedBinaryStream : IDisposable, IEquatable<PackedBinaryStream>
     {
-        /// <summary>
-        /// All input characters were consumes and all tokens were generated.
-        /// </summary>
-        const int k_ResultSuccess = 0;
-
-        /// <summary>
-        /// The maximum depth limit has been exceeded.
-        /// </summary>
-        const int k_ResultStackOverflow = -4;
-
         const int k_DefaultBufferCapacity = 4096;
         const int k_DefaultTokenCapacity = 1024;
 
-        [BurstCompile]
-        struct InitializeJob : IJobParallelFor
-        {
-            [NativeDisableUnsafePtrRestriction] public BinaryToken* BinaryTokens;
-            [NativeDisableUnsafePtrRestriction] public HandleData* Handles;
-
-            public int StartIndex;
-
-            public void Execute(int index)
-            {
-                index += StartIndex;
-
-                BinaryTokens[index] = new BinaryToken
-                {
-                    HandleIndex = index
-                };
-
-                Handles[index] = new HandleData
-                {
-                    DataIndex = index,
-                    DataVersion = 1
-                };
-            }
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        struct DiscardCompletedJobOutput
-        {
-            public int Result;
-            public int TokenNextIndex;
-            public int TokenParentIndex;
-            public int BufferPosition;
-        }
-
-        /// <summary>
-        /// Compress/shrink the buffers removing any completed tokens.
-        ///
-        /// The last token and all ancestors are preserved while siblings are discarded.
-        /// </summary>
-        [BurstCompile]
-        struct DiscardCompletedJob : IJob
-        {
-            const int k_StackSize = 128;
-
-            [NativeDisableUnsafePtrRestriction] public DiscardCompletedJobOutput* Output;
-
-            [NativeDisableUnsafePtrRestriction] public BinaryToken* Tokens;
-            public int TokenNextIndex;
-            public int TokenParentIndex;
-
-            [NativeDisableUnsafePtrRestriction] public HandleData* Handles;
-            [NativeDisableUnsafePtrRestriction] public byte* Buffer;
-            public int BufferPosition;
-
-            public void Execute()
-            {
-                var stack = stackalloc int[k_StackSize];
-                var sp = -1;
-
-                var index = TokenNextIndex - 1;
-
-                while (index != -1 && Tokens[index].Length == -1)
-                {
-                    index = Tokens[index].Parent;
-                }
-
-                while (index != -1)
-                {
-                    var token = Tokens[index];
-                    var partIndex = index + 1;
-                    var partCount = 1;
-
-                    for (;partIndex < TokenNextIndex; partIndex++)
-                    {
-                        if (Tokens[partIndex].Length == -1)
-                        {
-                            partCount++;
-                            continue;
-                        }
-
-                        break;
-                    }
-
-                    if (sp + partCount >= k_StackSize)
-                    {
-                        Output->Result = k_ResultStackOverflow;
-                        return;
-                    }
-
-                    for (var i = partCount - 1; i >= 0; i--)
-                    {
-                        stack[++sp] = index + i;
-                    }
-
-                    index = token.Parent;
-                }
-
-                var binaryTokenNextIndex = sp + 1;
-                var binaryBufferPosition = 0;
-
-                for (var i = 0; sp >= 0; i++, sp--)
-                {
-                    index = stack[sp];
-
-                    if (TokenParentIndex == index)
-                    {
-                        TokenParentIndex = i;
-                    }
-
-                    Swap(i, index);
-
-                    var token = Tokens[i];
-
-                    var length = 0;
-
-                    if (index + 1 >= TokenNextIndex)
-                    {
-                        length = BufferPosition - token.Position;
-                    }
-                    else
-                    {
-                        length = Tokens[index + 1].Position - token.Position;
-                    }
-
-                    Copy(Buffer + binaryBufferPosition, Buffer + token.Position, length);
-
-                    token.Position = binaryBufferPosition;
-
-                    var parentIndex = i - 1;
-                    if (token.Length != -1)
-                    {
-                        while (parentIndex != -1 && Tokens[parentIndex].Length == -1)
-                        {
-                            parentIndex--;
-                        }
-                    }
-                    token.Parent = parentIndex;
-
-                    Tokens[i] = token;
-                    binaryBufferPosition += length;
-                }
-
-                // Patch the lengths
-                for (int i = 0, length = binaryTokenNextIndex; i < binaryTokenNextIndex; i++)
-                {
-                    var token = Tokens[i];
-
-                    if (token.Length != -1)
-                    {
-                        token.Length = length;
-                    }
-
-                    length--;
-                    Tokens[i] = token;
-                }
-
-                // Invalidate all views that are outside of the collapsed range
-                for (var i = binaryTokenNextIndex; i < TokenNextIndex; i++)
-                {
-                    Handles[Tokens[i].HandleIndex].DataVersion++;
-                }
-
-                Output->Result = k_ResultSuccess;
-                Output->BufferPosition = binaryBufferPosition;
-                Output->TokenNextIndex = binaryTokenNextIndex;
-                Output->TokenParentIndex = TokenParentIndex;
-            }
-
-            void Swap(int x, int y)
-            {
-                var tmp = Tokens[x];
-                Tokens[x] = Tokens[y];
-                Tokens[y] = tmp;
-
-                // Update handle pointers
-                Handles[Tokens[x].HandleIndex].DataIndex = x;
-                Handles[Tokens[y].HandleIndex].DataIndex = y;
-            }
-
-            static void Copy(byte* destination, byte* source, int length)
-            {
-                for (var i = 0; i < length; i++)
-                {
-                    destination[i] = source[i];
-                }
-            }
-        }
-
-        /// <summary>
-        /// Increments the version counter on all handles to invalidate all distributed views.
-        /// </summary>
-        [BurstCompile]
-        struct ClearJob : IJobParallelFor
-        {
-            [NativeDisableUnsafePtrRestriction] public HandleData* Handles;
-
-            public void Execute(int index)
-            {
-                Handles[index].DataVersion++;
-            }
-        }
-
         readonly Allocator m_Label;
 
-        [NativeDisableUnsafePtrRestriction] PackedBinaryStreamData* m_Data;
+        [NativeDisableUnsafePtrRestriction] UnsafePackedBinaryStream* m_Data;
+        
+        internal UnsafePackedBinaryStream* GetUnsafePtr() => m_Data;
+
+        internal int TokenNextIndex => m_Data->TokenNextIndex;
 
         /// <summary>
         /// Constructs a new instance of <see cref="PackedBinaryStream"/> using default capacities.
@@ -360,180 +440,75 @@ namespace Unity.Serialization.Json
         public PackedBinaryStream(int initialTokensCapacity, int initialBufferCapacity, Allocator label)
         {
             m_Label = label;
-            m_Data = (PackedBinaryStreamData*) UnsafeUtility.Malloc(sizeof(PackedBinaryStreamData), UnsafeUtility.AlignOf<PackedBinaryStreamData>(), m_Label);
-            UnsafeUtility.MemClear(m_Data, sizeof(PackedBinaryStreamData));
-
-            // Allocate token and handle buffers.
-            m_Data->Tokens = (BinaryToken*) UnsafeUtility.Malloc(sizeof(BinaryToken) * initialTokensCapacity, UnsafeUtility.AlignOf<BinaryToken>(), m_Label);
-            m_Data->Handles = (HandleData*) UnsafeUtility.Malloc(sizeof(HandleData) * initialTokensCapacity, UnsafeUtility.AlignOf<HandleData>(), m_Label);
-            m_Data->TokensCapacity = initialTokensCapacity;
-
-            // Allocate string/primitive storage.
-            m_Data->Buffer = (byte*) UnsafeUtility.Malloc(sizeof(byte) * initialBufferCapacity, UnsafeUtility.AlignOf<byte>(), m_Label);
-            m_Data->BufferCapacity = initialBufferCapacity;
-            
-            if (initialTokensCapacity < 128)
-            {
-                for (var i = 0; i < initialTokensCapacity; i++)
-                {
-                    m_Data->Tokens[i] = new BinaryToken
-                    {
-                        HandleIndex = i
-                    };
-
-                    m_Data->Handles[i] = new HandleData
-                    {
-                        DataIndex = i,
-                        DataVersion = 1
-                    };
-                }
-            }
-            else
-            {
-                // Initialize handles and tokens with the correct indices.
-                new InitializeJob
-                {
-                    Handles = m_Data->Handles,
-                    BinaryTokens = m_Data->Tokens,
-                    StartIndex = 0
-                }.Schedule(initialTokensCapacity, initialTokensCapacity).Complete();
-            }
-            
-            m_Data->TokenNextIndex = 0;
-            m_Data->TokenParentIndex = -1;
-            m_Data->BufferPosition = 0;
+            m_Data = (UnsafePackedBinaryStream*) UnsafeUtility.Malloc(sizeof(UnsafePackedBinaryStream), UnsafeUtility.AlignOf<UnsafePackedBinaryStream>(), m_Label);
+            *m_Data = new UnsafePackedBinaryStream(initialTokensCapacity, initialBufferCapacity, m_Label);
         }
-
-        internal PackedBinaryStreamData* GetUnsafeData() => m_Data;
-
-        internal int TokenNextIndex => m_Data->TokenNextIndex;
+        
+        /// <summary>
+        /// Releases all resources used by the <see cref="PackedBinaryStream" />.
+        /// </summary>
+        public void Dispose()
+        {
+            m_Data->Dispose();
+            UnsafeUtility.Free(m_Data, m_Label);
+            m_Data = null;
+        }
 
         internal bool IsValid(Handle handle)
         {
-            if ((uint) handle.Index >= (uint) m_Data->TokensCapacity)
-            {
-                throw new IndexOutOfRangeException();
-            }
-
-            return m_Data->Handles[handle.Index].DataVersion == handle.Version;
+            return m_Data->IsValid(handle);
         }
-
+        
         internal BinaryToken GetToken(int tokenIndex)
         {
-            if ((uint) tokenIndex >= (uint) m_Data->TokenNextIndex)
-            {
-                throw new IndexOutOfRangeException();
-            }
-
-            return m_Data->Tokens[tokenIndex];
+            return m_Data->GetToken(tokenIndex);
         }
 
         internal BinaryToken GetToken(Handle handle)
         {
-            if ((uint) handle.Index >= (uint) m_Data->TokensCapacity)
-            {
-                throw new IndexOutOfRangeException();
-            }
-
-            var data = m_Data->Handles[handle.Index];
-
-            if (data.DataVersion != handle.Version)
-            {
-                throw new InvalidOperationException("View is invalid. The underlying data has been released.");
-            }
-
-            return GetToken(data.DataIndex);
+            return m_Data->GetToken(handle);
         }
 
         internal int GetTokenIndex(Handle handle)
         {
-            if ((uint) handle.Index >= (uint) m_Data->TokensCapacity)
-            {
-                throw new IndexOutOfRangeException();
-            }
-
-            var data = m_Data->Handles[handle.Index];
-
-            if (data.DataVersion != handle.Version)
-            {
-                throw new InvalidOperationException("View is invalid. The underlying data has been released.");
-            }
-
-            return data.DataIndex;
+            return m_Data->GetTokenIndex(handle);
         }
 
         internal Handle GetHandle(int tokenIndex)
         {
-            return GetHandle(GetToken(tokenIndex));
+            return m_Data->GetHandle(tokenIndex);
         }
 
         internal Handle GetHandle(BinaryToken token)
         {
-            return new Handle {Index = token.HandleIndex, Version = m_Data->Handles[token.HandleIndex].DataVersion };
+            return m_Data->GetHandle(token);
         }
 
         internal Handle GetFirstChild(Handle handle)
         {
-            var start = GetTokenIndex(handle);
-
-            for (var index = start + 1; index < m_Data->TokenNextIndex; index++)
-            {
-                var token = GetToken(index);
-
-                if (token.Length != -1 && token.Parent == start && token.Type != TokenType.Comment)
-                {
-                    return GetHandle(token);
-                }
-            }
-
-            throw new InvalidOperationException("Token out of range. Data has not been read yet.");
+            return m_Data->GetFirstChild(handle);
         }
 
         internal T* GetBufferPtr<T>(Handle handle) where T : unmanaged
         {
-            var position = GetToken(handle).Position;
-
-            if (position + sizeof(T) > m_Data->BufferPosition)
-            {
-                throw new IndexOutOfRangeException();
-            }
-
-            return (T*) (m_Data->Buffer + position);
+            return m_Data->GetBufferPtr<T>(handle);
         }
 
         internal void EnsureTokenCapacity(int newLength)
         {
-            if (newLength <= m_Data->TokensCapacity)
-            {
-                return;
-            }
-
-            var fromLength = m_Data->TokensCapacity;
-
-            m_Data->Tokens = Resize(m_Data->Tokens, fromLength, newLength, m_Label);
-            m_Data->Handles = Resize(m_Data->Handles, fromLength, newLength, m_Label);
-
-            var count = newLength - fromLength;
-            
-            new InitializeJob
-            {
-                Handles = m_Data->Handles,
-                BinaryTokens = m_Data->Tokens,
-                StartIndex = fromLength
-            }.Schedule(count, count).Complete();
-            
-            m_Data->TokensCapacity = newLength;
+            m_Data->EnsureTokenCapacity(newLength);
         }
 
         internal void EnsureBufferCapacity(int length)
         {
-            if (length <= m_Data->BufferCapacity)
-            {
-                return;
-            }
-
-            m_Data->Buffer = Resize(m_Data->Buffer, m_Data->BufferPosition, length, m_Label);
-            m_Data->BufferCapacity = length;
+            m_Data->EnsureBufferCapacity(length);
+        }
+        
+        internal SerializedValueView GetView(int tokenIndex)
+        {
+            var token = m_Data->Tokens[tokenIndex];
+            var handle = m_Data->Handles[token.HandleIndex];
+            return new SerializedValueView(m_Data, new Handle { Index = token.HandleIndex, Version = handle.DataVersion });
         }
 
         /// <summary>
@@ -541,10 +516,7 @@ namespace Unity.Serialization.Json
         /// </summary>
         public void Clear()
         {
-            new ClearJob { Handles = m_Data->Handles }.Schedule(m_Data->TokenNextIndex, m_Data->TokenNextIndex).Complete();
-            m_Data->TokenNextIndex = 0;
-            m_Data->TokenParentIndex = -1;
-            m_Data->BufferPosition = 0;
+            m_Data->Clear();
         }
 
         /// <summary>
@@ -552,49 +524,7 @@ namespace Unity.Serialization.Json
         /// </summary>
         internal void DiscardCompleted()
         {
-            var output = new DiscardCompletedJobOutput();
-
-            new DiscardCompletedJob
-                {
-                    Output = &output,
-                    Tokens = m_Data->Tokens,
-                    TokenNextIndex = m_Data->TokenNextIndex,
-                    TokenParentIndex = m_Data->TokenParentIndex,
-                    Handles = m_Data->Handles,
-                    Buffer = m_Data->Buffer,
-                    BufferPosition = m_Data->BufferPosition
-                }
-                .Run();
-
-            if (output.Result == k_ResultStackOverflow)
-                throw new StackOverflowException();
-
-            m_Data->TokenNextIndex = output.TokenNextIndex;
-            m_Data->TokenParentIndex = output.TokenParentIndex;
-            m_Data->BufferPosition = output.BufferPosition;
-        }
-        
-        internal UnsafePackedBinaryStream AsUnsafe() => new UnsafePackedBinaryStream(this);
-
-        /// <summary>
-        /// Releases all resources used by the <see cref="PackedBinaryStream" />.
-        /// </summary>
-        public void Dispose()
-        {
-            UnsafeUtility.Free(m_Data->Tokens, m_Label);
-            UnsafeUtility.Free(m_Data->Handles, m_Label);
-            UnsafeUtility.Free(m_Data->Buffer, m_Label);
-            UnsafeUtility.MemClear(m_Data, sizeof(PackedBinaryStreamData));
-            UnsafeUtility.Free(m_Data, m_Label);
-            m_Data = null;
-        }
-
-        static T* Resize<T>(T* buffer, int fromLength, int toLength, Allocator label) where T : unmanaged
-        {
-            var tmp = (T*) UnsafeUtility.Malloc(toLength * sizeof(T), UnsafeUtility.AlignOf<T>(), label);
-            UnsafeUtility.MemCpy(tmp, buffer, fromLength * sizeof(T));
-            UnsafeUtility.Free(buffer, label);
-            return tmp;
+            m_Data->DiscardCompleted();
         }
 
         /// <inheritdoc/>

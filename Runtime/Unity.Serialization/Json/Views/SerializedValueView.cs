@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using Unity.Burst;
+using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Serialization.Json.Unsafe;
 
 namespace Unity.Serialization.Json
@@ -7,14 +10,14 @@ namespace Unity.Serialization.Json
     /// <summary>
     /// A view on top of the <see cref="PackedBinaryStream"/> that represents any value.
     /// </summary>
-    public readonly struct SerializedValueView : ISerializedView
+    public readonly unsafe struct SerializedValueView : ISerializedView
     {
         // ReSharper disable InconsistentNaming
-        internal readonly PackedBinaryStream m_Stream;
+        [NativeDisableUnsafePtrRestriction] internal readonly UnsafePackedBinaryStream* m_Stream;
         internal readonly Handle m_Handle;
         // ReSharper restore InconsistentNaming
 
-        internal SerializedValueView(PackedBinaryStream stream, Handle handle)
+        internal SerializedValueView(UnsafePackedBinaryStream* stream, Handle handle)
         {
             m_Stream = stream;
             m_Handle = handle;
@@ -23,7 +26,7 @@ namespace Unity.Serialization.Json
         /// <summary>
         /// The <see cref="TokenType"/> for this view. Use this to check which conversions are valid.
         /// </summary>
-        public TokenType Type => m_Stream.GetToken(m_Handle).Type;
+        public TokenType Type => m_Stream->GetToken(m_Handle).Type;
 
         /// <summary>
         /// Gets the value associated with the specified key.
@@ -31,19 +34,93 @@ namespace Unity.Serialization.Json
         /// <param name="name">The key of the value to get.</param>
         /// <exception cref="InvalidOperationException">The view does not represent an object type.</exception>
         /// <exception cref="KeyNotFoundException">The key does not exist in the collection.</exception>
-        public SerializedValueView this[string name]
-        {
-            get
-            {
-                var obj = AsObjectView();
-                
-                if (obj.TryGetValue(name, out var value))
-                {
-                    return value;
-                }
+        [BurstDiscard]
+        public SerializedValueView this[string name] => GetValue(name);
 
-                throw new KeyNotFoundException($"The Key=[\"{name}\"] could not be found in the SerializedValueView.");
-            }
+        /// <summary>
+        /// Gets the value associated with the specified key.
+        /// </summary>
+        /// <param name="name">The key of the value to get.</param>
+        /// <exception cref="InvalidOperationException">The view does not represent an object type.</exception>
+        /// <exception cref="KeyNotFoundException">The key does not exist in the collection.</exception>
+        public SerializedValueView this[in FixedString32Bytes name] => GetValue(name);
+        
+        /// <summary>
+        /// Gets the value associated with the specified key.
+        /// </summary>
+        /// <param name="name">The key of the value to get.</param>
+        /// <exception cref="InvalidOperationException">The view does not represent an object type.</exception>
+        /// <exception cref="KeyNotFoundException">The key does not exist in the collection.</exception>
+        public SerializedValueView this[in FixedString64Bytes name] => GetValue(name);
+        
+        /// <summary>
+        /// Gets the value associated with the specified key.
+        /// </summary>
+        /// <param name="name">The key of the value to get.</param>
+        /// <exception cref="InvalidOperationException">The view does not represent an object type.</exception>
+        /// <exception cref="KeyNotFoundException">The key does not exist in the collection.</exception>
+        public SerializedValueView this[in FixedString128Bytes name] => GetValue(name);
+        
+        /// <summary>
+        /// Gets the value associated with the specified key.
+        /// </summary>
+        /// <param name="name">The key of the value to get.</param>
+        /// <returns>Returns the value associated with the specified key.</returns>
+        [NotBurstCompatible]
+        public SerializedValueView GetValue(in string name)
+        {
+            if (!TryGetValue(name, out var value))
+                throw new KeyNotFoundException(name);
+            
+            return value;
+        }
+
+        /// <summary>
+        /// Gets the value associated with the specified key.
+        /// </summary>
+        /// <param name="name">The key of the value to get.</param>
+        /// <param name="value">When this method returns, contains the value associated with the specified key, if the key is found; otherwise, the default value.</param>
+        /// <returns>true if the <see cref="SerializedObjectView"/> contains an element with the specified key; otherwise, false.</returns>
+        [NotBurstCompatible]
+        public bool TryGetValue(in string name, out SerializedValueView value)
+        {
+            if (Type == TokenType.Object) 
+                return AsObjectView().TryGetValue(name, out value);
+            
+            value = default;
+            return false;
+        }
+        
+        /// <summary>
+        /// Gets the value associated with the specified key.
+        /// </summary>
+        /// <param name="name">The key of the value to get.</param>
+        /// <typeparam name="T">The fixed string type.</typeparam>
+        /// <returns>Returns the value associated with the specified key.</returns>
+        [BurstCompatible(GenericTypeArguments = new[] { typeof(FixedString128Bytes) })]
+        public SerializedValueView GetValue<T>(in T name) where T : unmanaged, INativeList<byte>, IUTF8Bytes
+        {
+            if (!TryGetValue(name, out var value))
+                throw new KeyNotFoundException();
+            
+            return value;
+        }
+
+        /// <summary>
+        /// Gets the value associated with the specified key.
+        /// </summary>
+        /// <param name="name">The key of the value to get.</param>
+        /// <param name="value">When this method returns, contains the value associated with the specified key, if the key is found; otherwise, the default value.</param>
+        /// <typeparam name="T">The fixed string type.</typeparam>
+        /// <returns>true if the <see cref="SerializedObjectView"/> contains an element with the specified key; otherwise, false.</returns>
+        [BurstCompatible(GenericTypeArguments = new[] { typeof(FixedString128Bytes) })]
+        public bool TryGetValue<T>(in T name, out SerializedValueView value) where T : unmanaged, INativeList<byte>, IUTF8Bytes
+        {
+            if (Type == TokenType.Object) 
+                return AsObjectView().TryGetValue(name, out value);
+            
+            value = default;
+            return false;
         }
         
         /// <summary>
@@ -52,12 +129,10 @@ namespace Unity.Serialization.Json
         /// <returns>True if the value is a member.</returns>
         public bool IsMember()
         {
-            var token = m_Stream.GetToken(m_Handle);
+            var token = m_Stream->GetToken(m_Handle);
 
-            if (token.Parent != -1 && m_Stream.GetToken(token.Parent).Type != TokenType.Object)
-            {
+            if (token.Parent != -1 && m_Stream->GetToken(token.Parent).Type != TokenType.Object)
                 return false;
-            }
 
             return token.Type == TokenType.String || token.Type == TokenType.Primitive;
         }
@@ -68,7 +143,7 @@ namespace Unity.Serialization.Json
         /// <returns><see langword="true"/> if the value represents a null value token.</returns>
         public bool IsNull()
         {
-            var token = m_Stream.GetToken(m_Handle);
+            var token = m_Stream->GetToken(m_Handle);
 
             if (token.Type != TokenType.Primitive)
                 return false;
@@ -103,12 +178,10 @@ namespace Unity.Serialization.Json
         /// <exception cref="InvalidOperationException">The value could not be reinterpreted.</exception>
         public SerializedStringView AsStringView()
         {
-            var token = m_Stream.GetToken(m_Handle);
+            var token = m_Stream->GetToken(m_Handle);
 
             if (token.Type != TokenType.String && token.Type != TokenType.Primitive)
-            {
                 throw new InvalidOperationException($"Failed to read value RequestedType=[{TokenType.String}|{TokenType.Primitive}] ActualType=[{token.Type}]");
-            }
 
             return new SerializedStringView(m_Stream, m_Handle);
         }
@@ -194,23 +267,53 @@ namespace Unity.Serialization.Json
 
         void CheckValueType(TokenType type)
         {
-            var token = m_Stream.GetToken(m_Handle);
+            var token = m_Stream->GetToken(m_Handle);
 
             if (token.Type != type)
-            {
                 throw new InvalidOperationException($"Failed to read value RequestedType=[{type}] ActualType=[{token.Type}]");
-            }
         }
 
         /// <summary>
-        /// Returns the debug string for this view.
+        /// Returns the value as a string.
         /// </summary>
-        /// <returns>The debug string for this view.</returns>
+        /// <returns>The value as a string.</returns>
+        [NotBurstCompatible]
         public override string ToString()
         {
             return AsStringView().ToString();
         }
         
-        internal UnsafeValueView AsUnsafe() => new UnsafeValueView(m_Stream.AsUnsafe(), m_Stream.GetTokenIndex(m_Handle));
+        /// <summary>
+        /// Returns the value as a string.
+        /// </summary>
+        /// <typeparam name="T">The fixed string type.</typeparam>
+        /// <returns>The value as a string.</returns>
+        [BurstCompatible(GenericTypeArguments = new[] { typeof(FixedString128Bytes) })]
+        public T AsFixedString<T>() where T : unmanaged, INativeList<byte>, IUTF8Bytes
+        {
+            return AsStringView().AsFixedString<T>();
+        }
+        
+        /// <summary>
+        /// Returns the value as a string.
+        /// </summary>
+        /// <param name="allocator">The allocator to use for the text.</param>
+        /// <returns>The value as a string.</returns>
+        public NativeText AsNativeText(Allocator allocator)
+        {
+            return AsStringView().AsNativeText(allocator);
+        }
+        
+        /// <summary>
+        /// Returns the value as a string.
+        /// </summary>
+        /// <param name="allocator">The allocator to use for the text.</param>
+        /// <returns>The value as a string.</returns>
+        public UnsafeText AsUnsafeText(Allocator allocator)
+        {
+            return AsStringView().AsUnsafeText(allocator);
+        }
+        
+        internal UnsafeValueView AsUnsafe() => new UnsafeValueView(m_Stream, m_Stream->GetTokenIndex(m_Handle));
     }
 }

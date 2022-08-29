@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Unity.Properties;
+using UnityEngine;
 
 namespace Unity.Serialization.Json
 {
@@ -8,8 +9,17 @@ namespace Unity.Serialization.Json
     /// </summary>
     public class JsonObject : Dictionary<string, object>
     {
-        static JsonObject()
+        private static bool k_Registered = false;
+
+#if UNITY_EDITOR
+        [UnityEditor.InitializeOnLoadMethod]
+#endif
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]  
+        static void RegisterPropertyBag()
         {
+            if (k_Registered) return;
+
+            k_Registered = true;
             PropertyBag.Register(new KeyValueCollectionPropertyBag<JsonObject, string, object>());
         }
     }
@@ -19,8 +29,17 @@ namespace Unity.Serialization.Json
     /// </summary>
     public class JsonArray : List<object>
     {
-        static JsonArray()
+        private static bool k_Registered = false;
+
+#if UNITY_EDITOR
+        [UnityEditor.InitializeOnLoadMethod]
+#endif
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]  
+        static void RegisterPropertyBag()
         {
+            if (k_Registered) return;
+
+            k_Registered = true;
             PropertyBag.Register(new IndexedCollectionPropertyBag<JsonArray, object>());
         }
     }

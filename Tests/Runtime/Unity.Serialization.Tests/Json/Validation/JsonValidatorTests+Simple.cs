@@ -1,5 +1,7 @@
 ﻿using NUnit.Framework;
+using Unity.Burst;
 using Unity.Collections;
+using Unity.Jobs;
 using UnityEngine;
 
 namespace Unity.Serialization.Json.Tests
@@ -80,5 +82,53 @@ namespace Unity.Serialization.Json.Tests
                 }
             }
         }
+        
+        [BurstCompile]
+        struct ValidationJob : IJob
+        {
+            public UnsafeBuffer<char> Buffer;
+            public int Start;
+            public int Length;
+            public JsonValidator Validator;
+            
+            public void Execute()
+            {
+                Validator.Validate(Buffer, Start, Length);
+            }
+        }
+
+        [Test]
+        [TestCase("{}", true, JsonType.EOF, JsonType.EOF, 1, 3)]
+        [TestCase("\n{\n \t}", true, JsonType.EOF, JsonType.EOF, 3, 4)]
+        [TestCase("{", false, JsonType.EndObject | JsonType.String, JsonType.EOF, 1, 2)]
+        [TestCase("a = 1234", true, JsonType.Value | JsonType.EOF, JsonType.EOF, 1, 9)]
+        [TestCase("a = { b : q }", true, JsonType.EOF, JsonType.EOF, 1, 14)]
+        [TestCase(@"""a""", true, JsonType.MemberSeparator | JsonType.EOF, JsonType.EOF, 1, 4)]
+        [TestCase(@"a b", false, JsonType.MemberSeparator, JsonType.Value, 1, 3)]
+        [TestCase(@"a : ""b:a""", true,  JsonType.ValueSeparator | JsonType.String | JsonType.EOF, JsonType.EOF, 1, 10)]
+        [TestCase(@"{""test"": -3.814697E-06}", true,  JsonType.EOF, JsonType.EOF, 1, 24)]
+        public unsafe void JsonValidatorSimple_IsBurstCompatible(string json, bool valid, JsonType expected, JsonType actual, int line, int character)
+        {
+            var validator = new JsonValidator(JsonValidationType.Simple);
+            
+            fixed (char* ptr = json)
+            {
+                new ValidationJob
+                {
+                    Buffer = new UnsafeBuffer<char>(ptr, json.Length),
+                    Start = 0,
+                    Length = json.Length,
+                    Validator = validator
+                }.Execute();
+
+                var result = validator.GetResult();
+                Assert.AreEqual(valid, result.IsValid());
+                Assert.AreEqual(expected, result.ExpectedType);
+                Assert.AreEqual(actual, result.ActualType);
+                Assert.AreEqual(line, result.LineCount);
+                Assert.AreEqual(character, result.CharCount);
+            }
+        }
+
     }
 }

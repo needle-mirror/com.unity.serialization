@@ -26,8 +26,7 @@ namespace Unity.Serialization.Json
                 m_Collection = collection;
                 m_Index = -1;
             }
-
-
+            
             /// <summary>
             /// Advances the enumerator to the next element of the <see cref="SerializedMemberViewCollection"/>.
             /// </summary>
@@ -90,17 +89,41 @@ namespace Unity.Serialization.Json
         /// </summary>
         /// <param name="name">The key of the value to get.</param>
         /// <exception cref="KeyNotFoundException">The key does not exist in the collection.</exception>
-        public SerializedValueView this[string name]
-        {
-            get
-            {
-                if (TryGetValue(name, out var value))
-                {
-                    return value;
-                }
+        [NotBurstCompatible]
+        public SerializedValueView this[string name] => GetValue(name);
+        
+        /// <summary>
+        /// Gets the value associated with the specified key.
+        /// </summary>
+        /// <param name="name">The key of the value to get.</param>
+        /// <exception cref="KeyNotFoundException">The key does not exist in the collection.</exception>
+        public SerializedValueView this[FixedString32Bytes name] => GetValue(name);
+        
+        /// <summary>
+        /// Gets the value associated with the specified key.
+        /// </summary>
+        /// <param name="name">The key of the value to get.</param>
+        /// <exception cref="KeyNotFoundException">The key does not exist in the collection.</exception>
+        public SerializedValueView this[FixedString64Bytes name] => GetValue(name);
+        
+        /// <summary>
+        /// Gets the value associated with the specified key.
+        /// </summary>
+        /// <param name="name">The key of the value to get.</param>
+        /// <exception cref="KeyNotFoundException">The key does not exist in the collection.</exception>
+        public SerializedValueView this[FixedString128Bytes name] => GetValue(name);
 
-                throw new KeyNotFoundException();
-            }
+        /// <summary>
+        /// Gets the value associated with the specified key.
+        /// </summary>
+        /// <param name="name">The key of the value to get.</param>
+        /// <returns>The value associated with the specified key.</returns>
+        public SerializedValueView GetValue(string name)
+        {
+            if (!TryGetValue(name, out var value))
+                throw new KeyNotFoundException(name);
+                
+            return value;
         }
 
         /// <summary>
@@ -110,6 +133,46 @@ namespace Unity.Serialization.Json
         /// <param name="value">When this method returns, contains the value associated with the specified key, if the key is found; otherwise, the default value.</param>
         /// <returns>true if the <see cref="SerializedMemberViewCollection"/> contains an element with the specified key; otherwise, false.</returns>
         public bool TryGetValue(string name, out SerializedValueView value)
+        {
+            foreach (var m in this)
+            {
+                if (!m.Name().Equals(name))
+                {
+                    continue;
+                }
+
+                value = m.Value();
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+        
+        /// <summary>
+        /// Gets the value associated with the specified key.
+        /// </summary>
+        /// <param name="name">The key of the value to get.</param>
+        /// <typeparam name="T">The fixed string type.</typeparam>
+        /// <returns>Returns the value associated with the specified key.</returns>
+        [BurstCompatible(GenericTypeArguments = new[] { typeof(FixedString128Bytes) })]
+        public SerializedValueView GetValue<T>(T name) where T : unmanaged, INativeList<byte>, IUTF8Bytes
+        {
+            if (!TryGetValue(name, out var value))
+                throw new KeyNotFoundException($"The Key=[\"{name}\"] could not be found in the SerializedObjectView.");
+            
+            return value;
+        }
+        
+        /// <summary>
+        /// Gets the value associated with the specified key.
+        /// </summary>
+        /// <param name="name">The key of the value to get.</param>
+        /// <param name="value">When this method returns, contains the value associated with the specified key, if the key is found; otherwise, the default value.</param>
+        /// <typeparam name="T">The fixed string type.</typeparam>
+        /// <returns>true if the <see cref="SerializedObjectView"/> contains an element with the specified key; otherwise, false.</returns>
+        [BurstCompatible(GenericTypeArguments = new[] { typeof(FixedString128Bytes) })]
+        public bool TryGetValue<T>(T name, out SerializedValueView value) where T : unmanaged, INativeList<byte>, IUTF8Bytes
         {
             foreach (var m in this)
             {

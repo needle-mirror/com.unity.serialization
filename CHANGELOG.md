@@ -4,13 +4,26 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2022-08-12
+### Added
+* Added `SerializedObjectReader.SetSource` method to allow re-use of the same instance.
+* Added `FixedString` support for all `SerializedViews`.
+
+### Changed
+* Updated `com.unity.properties` to version `2.1.0-exp.1`.
+* Updated `com.unity.collections` to version `1.4.0`.
+* Updated `com.unity.burst` to version `1.7.2`.
+* Updated `com.unity.jobs` to version `0.70.0-preview.7`.
+* Updated `SerializedObjectReader` to be fully burst compatible.
+  * **Important change** All existing burst compiled methods and jobs were removed from the reader and instead it is up to user code to add burst or jobs.
+
 ## [2.0.0] - 2022-06-14
 
 ### Added
-* Add `SerializeValue` API for `SerializationContext` objects for serialization re-entry.
-* Add `DeserializeValue` API for `SerializationContext` objects for serialization re-entry.
+* Added `SerializeValue` API for `SerializationContext` objects for serialization re-entry.
+* Added `DeserializeValue` API for `SerializationContext` objects for serialization re-entry.
 * JSON serialization now supports simple json validation as an option.
-* Add `JsonWriter.WriteValue` override for bool values.
+* Added `JsonWriter.WriteValue` override for bool values.
 * `JsonSerialization.ToJson` supports serializing `SerializedObjectView` and `SerializedArrayView`.
 
 ### Changed
@@ -20,7 +33,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Updated `com.unity.burst` to version `1.6.1`.
 * Updated `com.unity.jobs` to version `0.11.0-preview.6`.
 * Updated `com.unity.test-framework.performance` to version `2.8.0-preview`.
-* ***Breaking change*** `IJsonAdapter` now pass a context object (`JsonSerializationContext` and `JsonDeserializationContext`). These context objects provide access to the underlying writer or serialized views. 
+* ***Breaking change*** `IJsonAdapter` now pass a context object (`JsonSerializationContext` and `JsonDeserializationContext`). These context objects provide access to the underlying writer or serialized views.
 * ***Breaking change*** `IBinaryAdapter` now pass a context object (`BinarySerializationContext` and `BinaryDeserializationContext`). These context objects provide access to the underlying writer or reader.
 
 ### Fixed
@@ -63,7 +76,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 * Enabled minimal support for `NET_DOTS`. Low level tokenization and parsing is now available.
 * Updated `com.unity.properties` to version `1.5.0-preview`.
-  
+
 ## [1.4.3] - 2020-08-04
 ### Changed
 * Update `com.unity.properties` to version `1.4.3-preview`.

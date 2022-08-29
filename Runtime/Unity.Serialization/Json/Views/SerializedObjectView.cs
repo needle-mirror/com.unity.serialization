@@ -1,6 +1,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Burst;
+using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Serialization.Json.Unsafe;
 
 namespace Unity.Serialization.Json
@@ -8,7 +11,7 @@ namespace Unity.Serialization.Json
     /// <summary>
     /// A view on top of the <see cref="PackedBinaryStream"/> that represents a set of key-values.
     /// </summary>
-    public readonly struct SerializedObjectView : ISerializedView, IEnumerable<SerializedMemberView>
+    public readonly unsafe struct SerializedObjectView : ISerializedView, IEnumerable<SerializedMemberView>
     {
         static SerializedObjectView()
         {
@@ -20,11 +23,11 @@ namespace Unity.Serialization.Json
         /// </summary>
         public struct Enumerator : IEnumerator<SerializedMemberView>
         {
-            readonly PackedBinaryStream m_Stream;
+            readonly UnsafePackedBinaryStream* m_Stream;
             readonly Handle m_Start;
             Handle m_Current;
 
-            internal Enumerator(PackedBinaryStream stream, Handle start)
+            internal Enumerator(UnsafePackedBinaryStream* stream, Handle start)
             {
                 m_Stream = stream;
                 m_Start = start;
@@ -37,8 +40,8 @@ namespace Unity.Serialization.Json
             /// <returns>true if the enumerator was successfully advanced to the next element; false if the enumerator has passed the end of the collection.</returns>
             public bool MoveNext()
             {
-                var startIndex = m_Stream.GetTokenIndex(m_Start);
-                var startToken = m_Stream.GetToken(startIndex);
+                var startIndex = m_Stream->GetTokenIndex(m_Start);
+                var startToken = m_Stream->GetToken(startIndex);
 
                 if (startToken.Length == 1)
                 {
@@ -47,24 +50,24 @@ namespace Unity.Serialization.Json
 
                 if (m_Current.Index == -1)
                 {
-                    m_Current = m_Stream.GetFirstChild(m_Start);
+                    m_Current = m_Stream->GetFirstChild(m_Start);
                     return true;
                 }
 
-                if (!m_Stream.IsValid(m_Current))
+                if (!m_Stream->IsValid(m_Current))
                 {
                     return false;
                 }
 
-                var currentIndex = m_Stream.GetTokenIndex(m_Current);
-                var currentToken = m_Stream.GetToken(currentIndex);
+                var currentIndex = m_Stream->GetTokenIndex(m_Current);
+                var currentToken = m_Stream->GetToken(currentIndex);
 
                 if (currentIndex + currentToken.Length >= startIndex + startToken.Length)
                 {
                     return false;
                 }
 
-                m_Current = m_Stream.GetHandle(currentIndex + currentToken.Length);
+                m_Current = m_Stream->GetHandle(currentIndex + currentToken.Length);
                 return true;
             }
 
@@ -102,10 +105,10 @@ namespace Unity.Serialization.Json
             }
         }
 
-        readonly PackedBinaryStream m_Stream;
+        [NativeDisableUnsafePtrRestriction] readonly UnsafePackedBinaryStream* m_Stream;
         readonly Handle m_Handle;
 
-        internal SerializedObjectView(PackedBinaryStream stream, Handle handle)
+        internal SerializedObjectView(UnsafePackedBinaryStream* stream, Handle handle)
         {
             m_Stream = stream;
             m_Handle = handle;
@@ -116,25 +119,51 @@ namespace Unity.Serialization.Json
         /// </summary>
         /// <param name="name">The key of the value to get.</param>
         /// <exception cref="KeyNotFoundException">The key does not exist in the collection.</exception>
-        public SerializedValueView this[string name]
+        [NotBurstCompatible] 
+        public SerializedValueView this[string name] => GetValue(name);
+        
+        /// <summary>
+        /// Gets the value associated with the specified key.
+        /// </summary>
+        /// <param name="name">The key of the value to get.</param>
+        /// <exception cref="KeyNotFoundException">The key does not exist in the collection.</exception>
+        public SerializedValueView this[in FixedString32Bytes name] => GetValue(in name);
+        
+        /// <summary>
+        /// Gets the value associated with the specified key.
+        /// </summary>
+        /// <param name="name">The key of the value to get.</param>
+        /// <exception cref="KeyNotFoundException">The key does not exist in the collection.</exception>
+        public SerializedValueView this[in FixedString64Bytes name] => GetValue(in name);
+        
+        /// <summary>
+        /// Gets the value associated with the specified key.
+        /// </summary>
+        /// <param name="name">The key of the value to get.</param>
+        /// <exception cref="KeyNotFoundException">The key does not exist in the collection.</exception>
+        public SerializedValueView this[in FixedString128Bytes name] => GetValue(in name);
+
+        /// <summary>
+        /// Gets the member associated with the specified key.
+        /// </summary>
+        /// <param name="name">The key of the member to get.</param>
+        /// <returns>Returns the member associated with the specified key.</returns>
+        [NotBurstCompatible]
+        public SerializedMemberView GetMember(string name)
         {
-            get
-            {
-                if (TryGetValue(name, out var value))
-                {
-                    return value;
-                }
+            if (!TryGetMember(name, out var member))
+                throw new KeyNotFoundException(name);
 
-                throw new KeyNotFoundException($"The Key=[\"{name}\"] could not be found in the SerializedObjectView.");
-            }
+            return member;
         }
-
+        
         /// <summary>
         /// Gets the member associated with the specified key.
         /// </summary>
         /// <param name="name">The key of the member to get.</param>
         /// <param name="member">When this method returns, contains the member associated with the specified key, if the key is found; otherwise, the default value.</param>
         /// <returns>true if the <see cref="SerializedObjectView"/> contains an element with the specified key; otherwise, false.</returns>
+        [NotBurstCompatible]
         public bool TryGetMember(string name, out SerializedMemberView member)
         {
             foreach (var m in this)
@@ -151,6 +180,20 @@ namespace Unity.Serialization.Json
             member = default;
             return false;
         }
+        
+        /// <summary>
+        /// Gets the value associated with the specified key.
+        /// </summary>
+        /// <param name="name">The key of the value to get.</param>
+        /// <returns>Returns the value associated with the specified key.</returns>
+        [NotBurstCompatible]
+        public SerializedValueView GetValue(string name)
+        {
+            if (!TryGetValue(name, out var value))
+                throw new KeyNotFoundException(name);
+            
+            return value;
+        }
 
         /// <summary>
         /// Gets the value associated with the specified key.
@@ -158,6 +201,7 @@ namespace Unity.Serialization.Json
         /// <param name="name">The key of the value to get.</param>
         /// <param name="value">When this method returns, contains the value associated with the specified key, if the key is found; otherwise, the default value.</param>
         /// <returns>true if the <see cref="SerializedObjectView"/> contains an element with the specified key; otherwise, false.</returns>
+        [NotBurstCompatible]
         public bool TryGetValue(string name, out SerializedValueView value)
         {
             foreach (var m in this)
@@ -181,6 +225,7 @@ namespace Unity.Serialization.Json
         /// <param name="name">The key of the value to get.</param>
         /// <param name="value">When this method returns, contains the value associated with the specified key and type, if the key is found and the type matches; otherwise, the default value.</param>
         /// <returns>true if the <see cref="SerializedObjectView"/> contains an element with the specified key and type; otherwise, false.</returns>
+        [NotBurstCompatible]
         public bool TryGetValueAsString(string name, out string value)
         {
             value = default;
@@ -201,6 +246,7 @@ namespace Unity.Serialization.Json
         /// <param name="name">The key of the value to get.</param>
         /// <param name="value">When this method returns, contains the value associated with the specified key and type, if the key is found and the type matches; otherwise, the default value.</param>
         /// <returns>true if the <see cref="SerializedObjectView"/> contains an element with the specified key and type; otherwise, false.</returns>
+        [NotBurstCompatible]
         public bool TryGetValueAsInt64(string name, out long value)
         {
             value = default;
@@ -222,6 +268,7 @@ namespace Unity.Serialization.Json
         /// <param name="name">The key of the value to get.</param>
         /// <param name="value">When this method returns, contains the value associated with the specified key and type, if the key is found and the type matches; otherwise, the default value.</param>
         /// <returns>true if the <see cref="SerializedObjectView"/> contains an element with the specified key and type; otherwise, false.</returns>
+        [NotBurstCompatible]
         public bool TryGetValueAsUInt64(string name, out ulong value)
         {
             value = default;
@@ -243,6 +290,7 @@ namespace Unity.Serialization.Json
         /// <param name="name">The key of the value to get.</param>
         /// <param name="value">When this method returns, contains the value associated with the specified key and type, if the key is found and the type matches; otherwise, the default value.</param>
         /// <returns>true if the <see cref="SerializedObjectView"/> contains an element with the specified key and type; otherwise, false.</returns>
+        [NotBurstCompatible]
         public bool TryGetValueAsFloat(string name, out float value)
         {
             value = default;
@@ -264,6 +312,7 @@ namespace Unity.Serialization.Json
         /// <param name="name">The key of the value to get.</param>
         /// <param name="value">When this method returns, contains the value associated with the specified key and type, if the key is found and the type matches; otherwise, the default value.</param>
         /// <returns>true if the <see cref="SerializedObjectView"/> contains an element with the specified key and type; otherwise, false.</returns>
+        [NotBurstCompatible]
         public bool TryGetValueAsDouble(string name, out double value)
         {
             value = default;
@@ -285,6 +334,7 @@ namespace Unity.Serialization.Json
         /// <param name="name">The key of the value to get.</param>
         /// <param name="value">When this method returns, contains the value associated with the specified key and type, if the key is found and the type matches; otherwise, the default value.</param>
         /// <returns>true if the <see cref="SerializedObjectView"/> contains an element with the specified key and type; otherwise, false.</returns>
+        [NotBurstCompatible]
         public bool TryGetValueAsBoolean(string name, out bool value)
         {
             value = default;
@@ -298,6 +348,86 @@ namespace Unity.Serialization.Json
             var primitive = view.AsPrimitiveView();
             value = primitive.AsBoolean();
             return true;
+        }
+        
+        /// <summary>
+        /// Gets the value associated with the specified key.
+        /// </summary>
+        /// <param name="name">The key of the value to get.</param>
+        /// <typeparam name="T">The fixed string type.</typeparam>
+        /// <returns>Returns the value associated with the specified key.</returns>
+        [BurstCompatible(GenericTypeArguments = new[] { typeof(FixedString128Bytes) })]
+        public SerializedValueView GetValue<T>(in T name) where T : unmanaged, INativeList<byte>, IUTF8Bytes
+        {
+            if (!TryGetValue(name, out var value))
+                throw new KeyNotFoundException();
+            
+            return value;
+        }
+        
+        /// <summary>
+        /// Gets the value associated with the specified key.
+        /// </summary>
+        /// <param name="name">The key of the value to get.</param>
+        /// <param name="value">When this method returns, contains the value associated with the specified key, if the key is found; otherwise, the default value.</param>
+        /// <typeparam name="T">The fixed string type.</typeparam>
+        /// <returns>true if the <see cref="SerializedObjectView"/> contains an element with the specified key; otherwise, false.</returns>
+        [BurstCompatible(GenericTypeArguments = new[] { typeof(FixedString128Bytes) })]
+        public bool TryGetValue<T>(in T name, out SerializedValueView value) where T : unmanaged, INativeList<byte>, IUTF8Bytes
+        {
+            foreach (var m in this)
+            {
+                if (!m.Name().Equals(name))
+                {
+                    continue;
+                }
+
+                value = m.Value();
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+        
+        /// <summary>
+        /// Gets the member associated with the specified key.
+        /// </summary>
+        /// <param name="name">The key of the member to get.</param>
+        /// <typeparam name="T">The fixed string type.</typeparam>
+        /// <returns>Returns the member associated with the specified key.</returns>
+        [BurstCompatible(GenericTypeArguments = new[] { typeof(FixedString128Bytes) })]
+        public SerializedMemberView GetMember<T>(in T name) where T : unmanaged, INativeList<byte>, IUTF8Bytes
+        {
+            if (!TryGetMember(name, out var member))
+                throw new KeyNotFoundException();
+            
+            return member;
+        }
+        
+        /// <summary>
+        /// Gets the member associated with the specified key.
+        /// </summary>
+        /// <param name="name">The key of the member to get.</param>
+        /// <typeparam name="T">The fixed string type.</typeparam>
+        /// <param name="member">When this method returns, contains the member associated with the specified key, if the key is found; otherwise, the default value.</param>
+        /// <returns>true if the <see cref="SerializedObjectView"/> contains an element with the specified key; otherwise, false.</returns>
+        [BurstCompatible(GenericTypeArguments = new[] { typeof(FixedString128Bytes) })]
+        public bool TryGetMember<T>(in T name, out SerializedMemberView member) where T : unmanaged, INativeList<byte>, IUTF8Bytes
+        {
+            foreach (var m in this)
+            {
+                if (!m.Name().Equals(name))
+                {
+                    continue;
+                }
+
+                member = m;
+                return true;
+            }
+
+            member = default;
+            return false;
         }
         
         /// <summary>
@@ -318,13 +448,13 @@ namespace Unity.Serialization.Json
         /// <returns>A <see cref="SerializedObjectView.Enumerator"/> for the <see cref="SerializedObjectView"/>.</returns>
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         
-        internal UnsafeObjectView AsUnsafe() => new UnsafeObjectView(m_Stream.AsUnsafe(), m_Stream.GetTokenIndex(m_Handle));
-        
         /// <summary>
         /// Re-interprets the specified object view to an untyped value view.
         /// </summary>
         /// <param name="view">The object view to re-interpret.</param>
         /// <returns>The untyped value view for the given object.</returns>
         public static implicit operator SerializedValueView(SerializedObjectView view) => new SerializedValueView(view.m_Stream, view.m_Handle);
+        
+        internal UnsafeObjectView AsUnsafe() => new UnsafeObjectView(m_Stream, m_Stream->GetTokenIndex(m_Handle));
     }
 }

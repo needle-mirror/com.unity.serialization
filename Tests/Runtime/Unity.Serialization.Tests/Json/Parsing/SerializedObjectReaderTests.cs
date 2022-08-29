@@ -509,5 +509,31 @@ color = { r = 1 g = 1 b = 1 a = 1 }
                 });
             }
         }
+        
+        [Test]
+        public void SerializedObjectReader_AsNativeText()
+        {
+            SetJson("{\"key\": \"value\"}");
+
+            using (var reader = new SerializedObjectReader(m_Stream))
+            {
+                reader.Read(out var view);
+                using var text = view["key"].AsNativeText(Allocator.Temp);
+                Assert.That(text.ToString(), Is.EqualTo("value"));
+            }
+        }
+        
+        [Test]
+        public void SerializedObjectReader_AsUnsafeText()
+        {
+            SetJson("{\"key\": \"value\"}");
+
+            using (var reader = new SerializedObjectReader(m_Stream))
+            {
+                reader.Read(out var view);
+                using var text = view["key"].AsUnsafeText(Allocator.Temp);
+                Assert.That(text.ToString(), Is.EqualTo("value"));
+            }
+        }
     }
 }

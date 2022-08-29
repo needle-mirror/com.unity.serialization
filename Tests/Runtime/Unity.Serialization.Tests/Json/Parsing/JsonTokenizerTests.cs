@@ -14,15 +14,15 @@ namespace Unity.Serialization.Json.Tests
         {
             fixed (char* ptr = json)
             {
-                using (var tokenizer = new JsonTokenizer(Allocator.TempJob))
-                {
-                    tokenizer.Write(new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
+                using var stream = new JsonTokenStream(Allocator.TempJob);
+                using var tokenizer = new JsonTokenizer(Allocator.TempJob);
+                
+                tokenizer.Write(stream, new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
 
-                    Assert.AreEqual(1, tokenizer.TokenNextIndex);
-                    Assert.AreEqual(TokenType.Object, tokenizer.Tokens[0].Type);
-                    Assert.AreEqual(-1, tokenizer.Tokens[0].Parent);
-                    Assert.AreNotEqual(-1, tokenizer.Tokens[0].End);
-                }
+                Assert.AreEqual(1, stream.TokenNextIndex);
+                Assert.AreEqual(TokenType.Object, stream.Tokens[0].Type);
+                Assert.AreEqual(-1, stream.Tokens[0].Parent);
+                Assert.AreNotEqual(-1, stream.Tokens[0].End);
             }
         }
 
@@ -32,18 +32,18 @@ namespace Unity.Serialization.Json.Tests
         [TestCase(" \n[ \t]")]
         public unsafe void JsonTokenizer_Write_EmptyArray(string json)
         {
-            using (var tokenizer = new JsonTokenizer(Allocator.TempJob))
+            using var stream = new JsonTokenStream(Allocator.TempJob);
+            using var tokenizer = new JsonTokenizer(Allocator.TempJob);
+            
+            fixed (char* ptr = json)
             {
-                fixed (char* ptr = json)
-                {
-                    tokenizer.Write(new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
-                }
-
-                Assert.AreEqual(1, tokenizer.TokenNextIndex);
-                Assert.AreEqual(TokenType.Array, tokenizer.Tokens[0].Type);
-                Assert.AreEqual(-1, tokenizer.Tokens[0].Parent);
-                Assert.AreNotEqual(-1, tokenizer.Tokens[0].End);
+                tokenizer.Write(stream, new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
             }
+
+            Assert.AreEqual(1, stream.TokenNextIndex);
+            Assert.AreEqual(TokenType.Array, stream.Tokens[0].Type);
+            Assert.AreEqual(-1, stream.Tokens[0].Parent);
+            Assert.AreNotEqual(-1, stream.Tokens[0].End);
         }
 
         [Test]
@@ -51,19 +51,19 @@ namespace Unity.Serialization.Json.Tests
         [TestCase(@"{""foo"": 0.0}")]
         public unsafe void JsonTokenizer_Write_ObjectWithMember(string json)
         {
-            using (var tokenizer = new JsonTokenizer(Allocator.TempJob))
-            {
-                fixed (char* ptr = json)
-                {
-                    tokenizer.Write(new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
-                }
+            using var stream = new JsonTokenStream(Allocator.TempJob);
+            using var tokenizer = new JsonTokenizer(Allocator.TempJob);
 
-                Assert.AreEqual(3, tokenizer.TokenNextIndex);
-                Assert.AreEqual(TokenType.Object, tokenizer.Tokens[0].Type);
-                Assert.AreNotEqual(-1, tokenizer.Tokens[0].End);
-                Assert.AreEqual(TokenType.String, tokenizer.Tokens[1].Type);
-                Assert.AreEqual(TokenType.Primitive, tokenizer.Tokens[2].Type);
+            fixed (char* ptr = json)
+            {
+                tokenizer.Write(stream, new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
             }
+
+            Assert.AreEqual(3, stream.TokenNextIndex);
+            Assert.AreEqual(TokenType.Object, stream.Tokens[0].Type);
+            Assert.AreNotEqual(-1, stream.Tokens[0].End);
+            Assert.AreEqual(TokenType.String, stream.Tokens[1].Type);
+            Assert.AreEqual(TokenType.Primitive, stream.Tokens[2].Type);
         }
 
         [Test]
@@ -73,46 +73,46 @@ namespace Unity.Serialization.Json.Tests
         [TestCase(@"{""test"":""a", @"b", @"c""}")]
         public unsafe void JsonTokenizer_Write_PartialString(params object[] parts)
         {
-            using (var tokenizer = new JsonTokenizer(Allocator.TempJob))
+            using var stream = new JsonTokenStream(Allocator.TempJob);
+            using var tokenizer = new JsonTokenizer(Allocator.TempJob);
+            
+            foreach (string json in parts)
             {
-                foreach (string json in parts)
-                {
-                    Assert.IsNotNull(json);
+                Assert.IsNotNull(json);
 
-                    fixed (char* ptr = json)
-                    {
-                        tokenizer.Write(new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
-                    }
+                fixed (char* ptr = json)
+                {
+                    tokenizer.Write(stream, new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
+                }
+            }
+
+            Assert.AreEqual(parts.Length + 2, stream.TokenNextIndex);
+            Assert.AreEqual(TokenType.Object, stream.Tokens[0].Type);
+            Assert.AreEqual(TokenType.String, stream.Tokens[1].Type);
+
+            for (var i = 0; i < parts.Length; i++)
+            {
+                var token = stream.Tokens[i + 2];
+
+                Assert.AreEqual(i + 1, token.Parent);
+                Assert.AreEqual(TokenType.String, token.Type);
+
+                if (i == 0)
+                {
+                    Assert.AreNotEqual(-1, token.Start);
+                }
+                else
+                {
+                    Assert.AreEqual(-1, token.Start);
                 }
 
-                Assert.AreEqual(parts.Length + 2, tokenizer.TokenNextIndex);
-                Assert.AreEqual(TokenType.Object, tokenizer.Tokens[0].Type);
-                Assert.AreEqual(TokenType.String, tokenizer.Tokens[1].Type);
-
-                for (var i = 0; i < parts.Length; i++)
+                if (i == parts.Length - 1)
                 {
-                    var token = tokenizer.Tokens[i + 2];
-
-                    Assert.AreEqual(i + 1, token.Parent);
-                    Assert.AreEqual(TokenType.String, token.Type);
-
-                    if (i == 0)
-                    {
-                        Assert.AreNotEqual(-1, token.Start);
-                    }
-                    else
-                    {
-                        Assert.AreEqual(-1, token.Start);
-                    }
-
-                    if (i == parts.Length - 1)
-                    {
-                        Assert.AreNotEqual(-1, token.End);
-                    }
-                    else
-                    {
-                        Assert.AreEqual(-1, token.End);
-                    }
+                    Assert.AreNotEqual(-1, token.End);
+                }
+                else
+                {
+                    Assert.AreEqual(-1, token.End);
                 }
             }
         }
@@ -125,46 +125,46 @@ namespace Unity.Serialization.Json.Tests
         {
             var parts = input.Split('|');
             
-            using (var tokenizer = new JsonTokenizer(Allocator.TempJob))
-            {
-                foreach (var json in parts)
-                {
-                    Assert.IsNotNull(json);
+            using var stream = new JsonTokenStream(Allocator.TempJob);
+            using var tokenizer = new JsonTokenizer(Allocator.TempJob);
 
-                    fixed (char* ptr = json)
-                    {
-                        tokenizer.Write(new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
-                    }
+            foreach (var json in parts)
+            {
+                Assert.IsNotNull(json);
+
+                fixed (char* ptr = json)
+                {
+                    tokenizer.Write(stream, new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
+                }
+            }
+
+            Assert.AreEqual(parts.Length + 2, stream.TokenNextIndex);
+            Assert.AreEqual(TokenType.Object, stream.Tokens[0].Type);
+            Assert.AreEqual(TokenType.String, stream.Tokens[1].Type);
+
+            for (var i = 0; i < parts.Length; i++)
+            {
+                var token = stream.Tokens[i + 2];
+
+                Assert.AreEqual(i + 1, token.Parent);
+                Assert.AreEqual(TokenType.Primitive, token.Type);
+
+                if (i == 0)
+                {
+                    Assert.AreNotEqual(-1, token.Start);
+                }
+                else
+                {
+                    Assert.AreEqual(-1, token.Start);
                 }
 
-                Assert.AreEqual(parts.Length + 2, tokenizer.TokenNextIndex);
-                Assert.AreEqual(TokenType.Object, tokenizer.Tokens[0].Type);
-                Assert.AreEqual(TokenType.String, tokenizer.Tokens[1].Type);
-
-                for (var i = 0; i < parts.Length; i++)
+                if (i == parts.Length - 1)
                 {
-                    var token = tokenizer.Tokens[i + 2];
-
-                    Assert.AreEqual(i + 1, token.Parent);
-                    Assert.AreEqual(TokenType.Primitive, token.Type);
-
-                    if (i == 0)
-                    {
-                        Assert.AreNotEqual(-1, token.Start);
-                    }
-                    else
-                    {
-                        Assert.AreEqual(-1, token.Start);
-                    }
-
-                    if (i == parts.Length - 1)
-                    {
-                        Assert.AreNotEqual(-1, token.End);
-                    }
-                    else
-                    {
-                        Assert.AreEqual(-1, token.End);
-                    }
+                    Assert.AreNotEqual(-1, token.End);
+                }
+                else
+                {
+                    Assert.AreEqual(-1, token.End);
                 }
             }
         }
@@ -178,43 +178,43 @@ namespace Unity.Serialization.Json.Tests
         {
             var parts = input.Split('|');
 
-            using (var tokenizer = new JsonTokenizer(Allocator.TempJob))
+            using var stream = new JsonTokenStream(Allocator.TempJob);
+            using var tokenizer = new JsonTokenizer(Allocator.TempJob);
+
+            foreach (var json in parts)
             {
-                foreach (var json in parts)
+                fixed (char* ptr = json)
                 {
-                    fixed (char* ptr = json)
-                    {
-                        tokenizer.Write(new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
-                    }
+                    tokenizer.Write(stream, new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
+                }
+            }
+
+            Assert.AreEqual(parts.Length + 1, stream.TokenNextIndex);
+            Assert.AreEqual(TokenType.Object, stream.Tokens[0].Type);
+
+            for (var i = 0; i < parts.Length - 1; i++)
+            {
+                var token = stream.Tokens[i + 1];
+
+                Assert.AreEqual(i, token.Parent);
+                Assert.AreEqual(TokenType.String, token.Type);
+
+                if (i == 0)
+                {
+                    Assert.AreNotEqual(-1, token.Start);
+                }
+                else
+                {
+                    Assert.AreEqual(-1, token.Start);
                 }
 
-                Assert.AreEqual(parts.Length + 1, tokenizer.TokenNextIndex);
-                Assert.AreEqual(TokenType.Object, tokenizer.Tokens[0].Type);
-
-                for (var i = 0; i < parts.Length - 1; i++)
+                if (i == parts.Length - 2)
                 {
-                    var token = tokenizer.Tokens[i + 1];
-
-                    Assert.AreEqual(i, token.Parent);
-                    Assert.AreEqual(TokenType.String, token.Type);
-
-                    if (i == 0)
-                    {
-                        Assert.AreNotEqual(-1, token.Start);
-                    }
-                    else
-                    {
-                        Assert.AreEqual(-1, token.Start);
-                    }
-
-                    if (i == parts.Length - 2)
-                    {
-                        Assert.AreNotEqual(-1, token.End);
-                    }
-                    else
-                    {
-                        Assert.AreEqual(-1, token.End);
-                    }
+                    Assert.AreNotEqual(-1, token.End);
+                }
+                else
+                {
+                    Assert.AreEqual(-1, token.End);
                 }
             }
         }
@@ -223,19 +223,19 @@ namespace Unity.Serialization.Json.Tests
         [TestCase(@"{""foo"": 123, ""bar"": 456}", 5, 3)]
         public unsafe void JsonTokenizer_DiscardCompleted(string json, int expectedCountBeforeDiscard, int expectedCountAfterDiscard)
         {
-            using (var tokenizer = new JsonTokenizer(Allocator.TempJob))
+            using var stream = new JsonTokenStream(Allocator.TempJob);
+            using var tokenizer = new JsonTokenizer(Allocator.TempJob);
+
+            fixed (char* ptr = json)
             {
-                fixed (char* ptr = json)
-                {
-                    tokenizer.Write(new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
-                }
-
-                Assert.AreEqual(expectedCountBeforeDiscard, tokenizer.TokenNextIndex);
-
-                tokenizer.DiscardCompleted();
-
-                Assert.AreEqual(expectedCountAfterDiscard, tokenizer.TokenNextIndex);
+                tokenizer.Write(stream, new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
             }
+
+            Assert.AreEqual(expectedCountBeforeDiscard, stream.TokenNextIndex);
+
+            stream.DiscardCompleted();
+
+            Assert.AreEqual(expectedCountAfterDiscard, stream.TokenNextIndex);
         }
 
         [Test]
@@ -247,20 +247,20 @@ namespace Unity.Serialization.Json.Tests
         {
             var parts = input.Split('|');
             
-            using (var tokenizer = new JsonTokenizer(Allocator.TempJob))
+            using var stream = new JsonTokenStream(Allocator.TempJob);
+            using var tokenizer = new JsonTokenizer(Allocator.TempJob);
+            
+            foreach (var json in parts)
             {
-                foreach (var json in parts)
+                fixed (char* ptr = json)
                 {
-                    fixed (char* ptr = json)
-                    {
-                        tokenizer.Write(new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
-                    }
+                    tokenizer.Write(stream,new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
                 }
-
-                Assert.AreEqual(expectedCountBeforeDiscard, tokenizer.TokenNextIndex);
-                tokenizer.DiscardCompleted();
-                Assert.AreEqual(expectedCountAfterDiscard, tokenizer.TokenNextIndex);
             }
+
+            Assert.AreEqual(expectedCountBeforeDiscard, stream.TokenNextIndex);
+            stream.DiscardCompleted();
+            Assert.AreEqual(expectedCountAfterDiscard, stream.TokenNextIndex);
         }
 
         [Test]
@@ -268,50 +268,54 @@ namespace Unity.Serialization.Json.Tests
         {
             const string json = @"{""foo"": 123, ""bar"": 456}";
 
-            using (var tokenizer = new JsonTokenizer(4))
+            using var stream = new JsonTokenStream(Allocator.TempJob);
+            using var tokenizer = new JsonTokenizer(Allocator.TempJob);
+
+            fixed (char* ptr = json)
             {
-                Assert.DoesNotThrow(() =>
-                {
-                    fixed (char* ptr = json)
-                    {
-                        tokenizer.Write(new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
-                    }
-                });
+                tokenizer.Write(stream, new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
             }
+            
+            Assert.DoesNotThrow(() =>
+            {
+                tokenizer.CheckAndThrowInvalidJsonExceptions();
+            });
         }
 
         [Test]
         [TestCase(@"{}}")]
         public unsafe void JsonTokenizer_Write_InvalidJson(string json)
         {
-            using (var tokenizer = new JsonTokenizer(4))
+            using var stream = new JsonTokenStream(Allocator.TempJob);
+            using var tokenizer = new JsonTokenizer(Allocator.TempJob);
+            
+            fixed (char* ptr = json)
             {
-                Assert.Throws<InvalidJsonException>(() =>
-                {
-                    fixed (char* ptr = json)
-                    {
-                        tokenizer.Write(new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
-                    }
-                });
+                tokenizer.Write(stream, new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
             }
+            
+            Assert.Throws<InvalidJsonException>(() =>
+            {
+                tokenizer.CheckAndThrowInvalidJsonExceptions();
+            });
         }
 
         [Test]
         [TestCase(@"{a = /**/ 5}")]
         public unsafe void JsonTokenizer_Write_Comments(string json)
         {
-            using (var tokenizer = new JsonTokenizer(4))
+            using var stream = new JsonTokenStream(Allocator.TempJob);
+            using var tokenizer = new JsonTokenizer(Allocator.TempJob);
+
+            fixed (char* ptr = json)
             {
-                fixed (char* ptr = json)
-                {
-                    tokenizer.Write(new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
-                    
-                    Assert.That(tokenizer.TokenNextIndex, Is.EqualTo(4));
-                    Assert.That(tokenizer.Tokens[0].Type, Is.EqualTo(TokenType.Object));
-                    Assert.That(tokenizer.Tokens[1].Type, Is.EqualTo(TokenType.Primitive));
-                    Assert.That(tokenizer.Tokens[2].Type, Is.EqualTo(TokenType.Comment));
-                    Assert.That(tokenizer.Tokens[3].Type, Is.EqualTo(TokenType.Primitive));
-                }
+                tokenizer.Write(stream, new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
+                
+                Assert.That(stream.TokenNextIndex, Is.EqualTo(4));
+                Assert.That(stream.Tokens[0].Type, Is.EqualTo(TokenType.Object));
+                Assert.That(stream.Tokens[1].Type, Is.EqualTo(TokenType.Primitive));
+                Assert.That(stream.Tokens[2].Type, Is.EqualTo(TokenType.Comment));
+                Assert.That(stream.Tokens[3].Type, Is.EqualTo(TokenType.Primitive));
             }
         }
     }

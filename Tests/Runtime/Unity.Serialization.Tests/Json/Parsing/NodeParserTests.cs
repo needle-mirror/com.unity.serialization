@@ -24,14 +24,46 @@ namespace Unity.Serialization.Json.Tests
 
         static IEnumerable<NodeType> StepNodes(string json)
         {
-            using (var tokenizer = new JsonTokenizer(Allocator.TempJob))
-            using (var parser = new NodeParser(tokenizer, Allocator.TempJob))
-            {
-                // Tokenize the entire input data.
-                Write(tokenizer, json);
+            using var stream = new JsonTokenStream(Allocator.TempJob);
+            using var tokenizer = new JsonTokenizer(Allocator.TempJob);
+            using var parser = new NodeParser(stream, Allocator.TempJob);
+            
+            // Tokenize the entire input data.
+            Write(stream, tokenizer, json);
 
-                // Read until we have no more input.
-                while (parser.TokenNextIndex < tokenizer.TokenNextIndex)
+            // Read until we have no more input.
+            while (parser.TokenNextIndex < stream.TokenNextIndex)
+            {
+                var node = parser.Step();
+
+                if (node == NodeType.None)
+                {
+                    continue;
+                }
+
+                yield return node;
+            }
+
+            // Flush the parser.
+            while (parser.NodeType != NodeType.None)
+            {
+                yield return parser.Step();
+            }
+        }
+
+        static IEnumerable<NodeType> StepNodes(IEnumerable<string> parts)
+        {
+            using var stream = new JsonTokenStream(Allocator.TempJob);
+            using var tokenizer = new JsonTokenizer(Allocator.TempJob);
+            using var parser = new NodeParser(stream, Allocator.TempJob);
+            
+            foreach (var json in parts)
+            {
+                // Tokenize a part of the input data.
+                Write(stream, tokenizer, json);
+
+                // Read until we consume all input data.
+                while (parser.TokenNextIndex < stream.TokenNextIndex)
                 {
                     var node = parser.Step();
 
@@ -42,54 +74,22 @@ namespace Unity.Serialization.Json.Tests
 
                     yield return node;
                 }
-
-                // Flush the parser.
-                while (parser.NodeType != NodeType.None)
-                {
-                    yield return parser.Step();
-                }
             }
-        }
 
-        static IEnumerable<NodeType> StepNodes(IEnumerable<string> parts)
-        {
-            using (var tokenizer = new JsonTokenizer(Allocator.TempJob))
-            using (var parser = new NodeParser(tokenizer, Allocator.TempJob))
+            // Flush the parser.
+            while (parser.NodeType != NodeType.None)
             {
-                foreach (var json in parts)
-                {
-                    // Tokenize a part of the input data.
-                    Write(tokenizer, json);
-
-                    // Read until we consume all input data.
-                    while (parser.TokenNextIndex < tokenizer.TokenNextIndex)
-                    {
-                        var node = parser.Step();
-
-                        if (node == NodeType.None)
-                        {
-                            continue;
-                        }
-
-                        yield return node;
-                    }
-                }
-
-                // Flush the parser.
-                while (parser.NodeType != NodeType.None)
-                {
-                    yield return parser.Step();
-                }
+                yield return parser.Step();
             }
         }
 
-        static void Write(JsonTokenizer tokenizer, string json)
+        static void Write(JsonTokenStream stream, JsonTokenizer tokenizer, string json)
         {
             unsafe
             {
                 fixed (char* ptr = json)
                 {
-                    tokenizer.Write(new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
+                    tokenizer.Write(stream, new UnsafeBuffer<char>(ptr, json.Length), 0, json.Length);
                 }
             }
         }

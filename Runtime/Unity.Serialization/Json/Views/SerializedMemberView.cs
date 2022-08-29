@@ -1,14 +1,17 @@
+using Unity.Collections.LowLevel.Unsafe;
+using Unity.Serialization.Json.Unsafe;
+
 namespace Unity.Serialization.Json
 {
     /// <summary>
     /// A view on top of the <see cref="PackedBinaryStream"/> that represents a key-value pair.
     /// </summary>
-    public readonly struct SerializedMemberView
+    public readonly unsafe struct SerializedMemberView
     {
-        readonly PackedBinaryStream m_Stream;
+        [NativeDisableUnsafePtrRestriction] readonly UnsafePackedBinaryStream* m_Stream;
         readonly Handle m_Handle;
 
-        internal SerializedMemberView(PackedBinaryStream stream, Handle handle)
+        internal SerializedMemberView(UnsafePackedBinaryStream* stream, Handle handle)
         {
             m_Stream = stream;
             m_Handle = handle;
@@ -24,6 +27,8 @@ namespace Unity.Serialization.Json
         /// Returns a <see cref="SerializedValueView"/> over the value of this member.
         /// </summary>
         /// <returns>A view over the value.</returns>
-        public SerializedValueView Value() => new SerializedValueView(m_Stream, m_Stream.GetFirstChild(m_Handle));
+        public SerializedValueView Value() => new SerializedValueView(m_Stream, m_Stream->GetFirstChild(m_Handle));
+        
+        internal UnsafeMemberView AsUnsafe() => new UnsafeMemberView(m_Stream, m_Stream->GetTokenIndex(m_Handle));
     }
 }

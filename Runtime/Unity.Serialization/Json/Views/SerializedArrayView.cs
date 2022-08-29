@@ -1,13 +1,15 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Collections.LowLevel.Unsafe;
+using Unity.Serialization.Json.Unsafe;
 
 namespace Unity.Serialization.Json
 {
     /// <summary>
     /// A view on top of the <see cref="PackedBinaryStream"/> that represents an array of values.
     /// </summary>
-    public readonly struct SerializedArrayView : ISerializedView, IList<SerializedValueView>
+    public readonly unsafe struct SerializedArrayView : ISerializedView, IList<SerializedValueView>
     {        
         static SerializedArrayView()
         {
@@ -19,11 +21,11 @@ namespace Unity.Serialization.Json
         /// </summary>
         public struct Enumerator : IEnumerator<SerializedValueView>
         {
-            readonly PackedBinaryStream m_Stream;
+            readonly UnsafePackedBinaryStream* m_Stream;
             readonly Handle m_Start;
             Handle m_Current;
 
-            internal Enumerator(PackedBinaryStream stream, Handle start)
+            internal Enumerator(UnsafePackedBinaryStream* stream, Handle start)
             {
                 m_Stream = stream;
                 m_Start = start;
@@ -36,8 +38,8 @@ namespace Unity.Serialization.Json
             /// <returns>true if the enumerator was successfully advanced to the next element; false if the enumerator has passed the end of the collection.</returns>
             public bool MoveNext()
             {
-                var startIndex = m_Stream.GetTokenIndex(m_Start);
-                var startToken = m_Stream.GetToken(startIndex);
+                var startIndex = m_Stream->GetTokenIndex(m_Start);
+                var startToken = m_Stream->GetToken(startIndex);
 
                 if (startToken.Length == 1)
                 {
@@ -46,24 +48,24 @@ namespace Unity.Serialization.Json
 
                 if (m_Current.Index == -1)
                 {
-                    m_Current = m_Stream.GetFirstChild(m_Start);
+                    m_Current = m_Stream->GetFirstChild(m_Start);
                     return true;
                 }
 
-                if (!m_Stream.IsValid(m_Current))
+                if (!m_Stream->IsValid(m_Current))
                 {
                     return false;
                 }
                 
-                var currentIndex = m_Stream.GetTokenIndex(m_Current);
-                var currentToken = m_Stream.GetToken(currentIndex);
+                var currentIndex = m_Stream->GetTokenIndex(m_Current);
+                var currentToken = m_Stream->GetToken(currentIndex);
 
                 if (currentIndex + currentToken.Length >= startIndex + startToken.Length)
                 {
                     return false;
                 }
                 
-                m_Current = m_Stream.GetHandle(currentIndex + currentToken.Length);
+                m_Current = m_Stream->GetHandle(currentIndex + currentToken.Length);
                 return true;
             }
 
@@ -101,10 +103,10 @@ namespace Unity.Serialization.Json
             }
         }
         
-        readonly PackedBinaryStream m_Stream;
+        [NativeDisableUnsafePtrRestriction] readonly UnsafePackedBinaryStream* m_Stream;
         readonly Handle m_Handle;
       
-        internal SerializedArrayView(PackedBinaryStream stream, Handle handle)
+        internal SerializedArrayView(UnsafePackedBinaryStream* stream, Handle handle)
         {
             m_Stream = stream;
             m_Handle = handle;
@@ -128,8 +130,7 @@ namespace Unity.Serialization.Json
         /// <returns>A <see cref="SerializedArrayView.Enumerator"/> for the <see cref="SerializedArrayView"/>.</returns>
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-        bool ICollection<SerializedValueView>.IsReadOnly 
-            => true;
+        bool ICollection<SerializedValueView>.IsReadOnly => true;
         
         SerializedValueView IList<SerializedValueView>.this[int index]
         {
@@ -157,29 +158,29 @@ namespace Unity.Serialization.Json
         {
             get
             {
-                var index = m_Stream.GetTokenIndex(m_Handle);
-                var token = m_Stream.GetToken(index);
+                var index = m_Stream->GetTokenIndex(m_Handle);
+                var token = m_Stream->GetToken(index);
 
                 if (token.Length <= 1)
                     return 0;
                 
                 var count = 0;
-                var childHandle = m_Stream.GetFirstChild(m_Handle);
+                var childHandle = m_Stream->GetFirstChild(m_Handle);
 
                 for (;;)
                 {
-                    if (!m_Stream.IsValid(childHandle))
+                    if (!m_Stream->IsValid(childHandle))
                         return count;
 
                     count++;
                     
-                    var childIndex = m_Stream.GetTokenIndex(childHandle);
-                    var childToken = m_Stream.GetToken(childIndex);
+                    var childIndex = m_Stream->GetTokenIndex(childHandle);
+                    var childToken = m_Stream->GetToken(childIndex);
                     
                     if (childIndex + childToken.Length >= index + token.Length)
                         return count;
                     
-                    childHandle = m_Stream.GetHandle(childIndex + childToken.Length);
+                    childHandle = m_Stream->GetHandle(childIndex + childToken.Length);
                 }
             }
         }
@@ -187,7 +188,7 @@ namespace Unity.Serialization.Json
         /// <inheritdoc cref="ICollection{T}.Contains"/>
         bool ICollection<SerializedValueView>.Contains(SerializedValueView item)
         {
-            if (!item.m_Stream.Equals(m_Stream))
+            if (item.m_Stream != m_Stream)
                 return false;
             
             using (var enumerator = GetEnumerator())
@@ -217,7 +218,7 @@ namespace Unity.Serialization.Json
         {
             var index = -1;
 
-            if (!item.m_Stream.Equals(m_Stream))
+            if (item.m_Stream != m_Stream)
                 return index;
             
             using (var enumerator = GetEnumerator())
@@ -253,5 +254,7 @@ namespace Unity.Serialization.Json
         /// <inheritdoc cref="IList{T}.RemoveAt"/>
         void IList<SerializedValueView>.RemoveAt(int index)
             => throw new NotSupportedException($"{nameof(SerializedArrayView)} is immutable");
+        
+        internal UnsafeArrayView AsUnsafe() => new UnsafeArrayView(m_Stream, m_Stream->GetTokenIndex(m_Handle));
     }
 }
