@@ -5,7 +5,6 @@ namespace Unity.Serialization.Json
 {
     unsafe partial struct JsonValidator
     {
-        [BurstCompatible]
         struct StandardJsonValidation
         {
             // ReSharper disable once MemberHidesStaticFromOuterClass

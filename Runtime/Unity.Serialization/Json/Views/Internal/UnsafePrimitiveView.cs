@@ -158,7 +158,6 @@ namespace Unity.Serialization.Json.Unsafe
         /// This method relies on a string allocation for <see cref="double.Parse(string)"/>.
         /// </remarks>
         /// <returns>The primitive as a double.</returns>
-        [NotBurstCompatible]
         public double AsDouble()
         {
             return double.Parse(AsString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture);
@@ -192,7 +191,6 @@ namespace Unity.Serialization.Json.Unsafe
         /// Allocates and returns a new <see cref="string"/> for the primitive.
         /// </summary>
         /// <returns>A <see cref="string"/> copy of the primitive.</returns>
-        [NotBurstCompatible]
         public string AsString() => AsStringView().ToString();
         
         public SerializedPrimitiveView AsSafe() => new SerializedPrimitiveView(m_Stream, m_Stream->GetHandle(m_TokenIndex));

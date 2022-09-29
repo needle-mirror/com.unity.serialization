@@ -1,12 +1,9 @@
-using Unity.Burst;
-using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 
 namespace Unity.Serialization.Json
 {
     unsafe partial struct JsonValidator
     {
-        [BurstCompatible]
         struct SimpleJsonValidation
         {
             // ReSharper disable once MemberHidesStaticFromOuterClass

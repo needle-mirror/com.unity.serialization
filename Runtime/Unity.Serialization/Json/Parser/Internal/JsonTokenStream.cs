@@ -36,7 +36,6 @@ namespace Unity.Serialization.Json
         }
     }
     
-    [BurstCompatible]
     unsafe struct UnsafeJsonTokenStream : IDisposable
     {
         /// <summary>

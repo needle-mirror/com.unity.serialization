@@ -52,7 +52,6 @@ namespace Unity.Serialization.Json
         /// </summary>
         /// <param name="other">The string to compare to this view.</param>
         /// <returns>true if the value of the value parameter is the same as the value of this view; otherwise, false.</returns>
-        [NotBurstCompatible]
         public bool Equals(string other)
         {
             var ptr = m_Stream->GetBufferPtr<byte>(m_Handle);
@@ -86,7 +85,6 @@ namespace Unity.Serialization.Json
         /// <param name="other">The string to compare to this view.</param>
         /// <typeparam name="T">The fixed string type.</typeparam>
         /// <returns>true if the value of the value parameter is the same as the value of this view; otherwise, false.</returns>
-        [BurstCompatible(GenericTypeArguments = new[] { typeof(FixedString128Bytes) })]
         public bool Equals<T>(T other) where T : unmanaged, INativeList<byte>, IUTF8Bytes
         {
             var ptr = m_Stream->GetBufferPtr<byte>(m_Handle);
@@ -101,7 +99,6 @@ namespace Unity.Serialization.Json
         /// Allocates and returns a new string instance based on the view.
         /// </summary>
         /// <returns>A new <see cref="string"/> instance.</returns>
-        [NotBurstCompatible]
         public override string ToString()
         {
             var buffer = m_Stream->GetBufferPtr<byte>(m_Handle);
@@ -119,7 +116,6 @@ namespace Unity.Serialization.Json
         /// </summary>
         /// <typeparam name="T">The fixed string type.</typeparam>
         /// <returns>A new <see cref="FixedString"/> instance.</returns>
-        [BurstCompatible(GenericTypeArguments = new[] { typeof(FixedString128Bytes) })]
         public T AsFixedString<T>() where T : unmanaged, INativeList<byte>, IUTF8Bytes
         {
             var buffer = m_Stream->GetBufferPtr<byte>(m_Handle);

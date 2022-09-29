@@ -66,7 +66,6 @@ namespace Unity.Serialization.Json
         /// </summary>
         /// <param name="name">The key of the value to get.</param>
         /// <returns>Returns the value associated with the specified key.</returns>
-        [NotBurstCompatible]
         public SerializedValueView GetValue(in string name)
         {
             if (!TryGetValue(name, out var value))
@@ -81,7 +80,6 @@ namespace Unity.Serialization.Json
         /// <param name="name">The key of the value to get.</param>
         /// <param name="value">When this method returns, contains the value associated with the specified key, if the key is found; otherwise, the default value.</param>
         /// <returns>true if the <see cref="SerializedObjectView"/> contains an element with the specified key; otherwise, false.</returns>
-        [NotBurstCompatible]
         public bool TryGetValue(in string name, out SerializedValueView value)
         {
             if (Type == TokenType.Object) 
@@ -97,7 +95,6 @@ namespace Unity.Serialization.Json
         /// <param name="name">The key of the value to get.</param>
         /// <typeparam name="T">The fixed string type.</typeparam>
         /// <returns>Returns the value associated with the specified key.</returns>
-        [BurstCompatible(GenericTypeArguments = new[] { typeof(FixedString128Bytes) })]
         public SerializedValueView GetValue<T>(in T name) where T : unmanaged, INativeList<byte>, IUTF8Bytes
         {
             if (!TryGetValue(name, out var value))
@@ -113,7 +110,6 @@ namespace Unity.Serialization.Json
         /// <param name="value">When this method returns, contains the value associated with the specified key, if the key is found; otherwise, the default value.</param>
         /// <typeparam name="T">The fixed string type.</typeparam>
         /// <returns>true if the <see cref="SerializedObjectView"/> contains an element with the specified key; otherwise, false.</returns>
-        [BurstCompatible(GenericTypeArguments = new[] { typeof(FixedString128Bytes) })]
         public bool TryGetValue<T>(in T name, out SerializedValueView value) where T : unmanaged, INativeList<byte>, IUTF8Bytes
         {
             if (Type == TokenType.Object) 
@@ -277,7 +273,6 @@ namespace Unity.Serialization.Json
         /// Returns the value as a string.
         /// </summary>
         /// <returns>The value as a string.</returns>
-        [NotBurstCompatible]
         public override string ToString()
         {
             return AsStringView().ToString();
@@ -288,7 +283,6 @@ namespace Unity.Serialization.Json
         /// </summary>
         /// <typeparam name="T">The fixed string type.</typeparam>
         /// <returns>The value as a string.</returns>
-        [BurstCompatible(GenericTypeArguments = new[] { typeof(FixedString128Bytes) })]
         public T AsFixedString<T>() where T : unmanaged, INativeList<byte>, IUTF8Bytes
         {
             return AsStringView().AsFixedString<T>();

@@ -4,7 +4,6 @@ using Unity.Collections.LowLevel.Unsafe;
 
 namespace Unity.Serialization.Json
 {
-    [BurstCompatible]
     struct UnsafeJsonValidator
     {
         public JsonTypeStack Stack;
@@ -20,7 +19,6 @@ namespace Unity.Serialization.Json
         public int PartialTokenState;
     }
     
-    [BurstCompatible]
     unsafe partial struct JsonValidator : IDisposable
     {
         const int k_ResultSuccess = 0;

@@ -112,7 +112,6 @@ namespace Unity.Serialization.Json
         /// Allocates and returns a new <see cref="string"/> for the primitive.
         /// </summary>
         /// <returns>A <see cref="string"/> copy of the primitive.</returns>
-        [NotBurstCompatible]
         public string AsString() => AsStringView().ToString();
 
         /// <summary>
@@ -174,7 +173,6 @@ namespace Unity.Serialization.Json
         /// This method relies on a string allocation for <see cref="double.Parse(string)"/>. 
         /// </remarks>
         /// <returns>The primitive as a double.</returns>
-        [NotBurstCompatible]
         public double AsDouble()
         {
             return double.Parse(AsString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture);
@@ -208,7 +206,6 @@ namespace Unity.Serialization.Json
         /// Returns the value as a string.
         /// </summary>
         /// <returns>The value as a string.</returns>
-        [NotBurstCompatible]
         public override string ToString()
         {
             return AsStringView().ToString();
@@ -219,7 +216,6 @@ namespace Unity.Serialization.Json
         /// </summary>
         /// <typeparam name="T">The fixed string type.</typeparam>
         /// <returns>The value as a string.</returns>
-        [BurstCompatible(GenericTypeArguments = new[] { typeof(FixedString128Bytes) })]
         public T AsFixedString<T>() where T : unmanaged, INativeList<byte>, IUTF8Bytes
         {
             return AsStringView().AsFixedString<T>();

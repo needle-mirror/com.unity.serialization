@@ -25,7 +25,6 @@ namespace Unity.Serialization.Json
         MultiLine
     }
     
-    [BurstCompatible]
     unsafe struct UnsafeJsonTokenizer : IDisposable
     {
         public ushort PrevChar;
