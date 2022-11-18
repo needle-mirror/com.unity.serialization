@@ -10,6 +10,17 @@ namespace Unity.Serialization.Json
     /// </summary>
     public struct JsonWriterOptions
     {
+        [Flags]
+        enum Overrides
+        {
+            None = 1 << 0,
+            Indent = 1 << 1
+        }
+
+        Overrides m_Overrides;
+        
+        int m_Indent;
+
         /// <summary>
         /// Gets or sets the value indicating whether the <see cref="JsonWriter"/> should skip formatting the output. This skips indentation, newlines and whitespace.
         /// </summary>
@@ -19,6 +30,19 @@ namespace Unity.Serialization.Json
         /// Gets or sets the value indicating whether the <see cref="JsonWriter"/> should use JSON formatting. This skips optional quotes and commas.
         /// </summary>
         public bool Simplified { get; set; }
+
+        /// <summary>
+        /// The indent value to use for the writer.
+        /// </summary>
+        public int Indent
+        {
+            readonly get => (Overrides.Indent & m_Overrides) != 0 ? m_Indent : 4;
+            set
+            {
+                m_Overrides |= Overrides.Indent;
+                m_Indent = value;
+            }
+        }
     }
     
     /// <summary>
@@ -69,8 +93,6 @@ namespace Unity.Serialization.Json
             const char k_NewlineToken = '\n';
             const char k_QuoteToken = '"';
             const char k_SpaceToken = ' ';
-            
-            const int k_IndentSpaceCount = 4;
 
             /// <summary>
             /// The allocator used when initializing this object. Used when disposing memory.
@@ -624,7 +646,7 @@ namespace Unity.Serialization.Json
             
                 Write(k_NewlineToken);
                 
-                for (var i = 0; i < k_IndentSpaceCount * m_Data->Indent; i++)
+                for (var i = 0; i < m_Options.Indent * m_Data->Indent; i++)
                     Write(k_SpaceToken);
             }
             

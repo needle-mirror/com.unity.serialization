@@ -196,5 +196,49 @@ namespace Unity.Serialization.Json.Tests
                 }
             }
         }
+
+        [Test]
+        public void FromJson_ToClassWithPrimitves_WhenInputIsInvalid_ThrowsDetailedException()
+        {
+            var ex = Assert.Throws<InvalidJsonException>(() =>
+            {
+                JsonSerialization.FromJson<TestClassWithPrimitives>(@"{""A"": asd}");
+            });
+            
+            Assert.That(ex.Line, Is.EqualTo(1));
+            Assert.That(ex.Character, Is.EqualTo(7));
+        }
+        
+        [Test]
+        public void FromJson_ToClassWithPrimitves_WhenInputIsInvalidWithDisabledValidation_OnlyThrowsStructuralException()
+        {
+            Assert.DoesNotThrow(() =>
+            {
+                JsonSerialization.FromJson<TestClassWithPrimitives>(@"{""A"": asd}", new JsonSerializationParameters {DisableValidation = true});
+            });
+            
+            var ex = Assert.Throws<InvalidJsonException>(() =>
+            {
+                JsonSerialization.FromJson<TestClassWithPrimitives>(@"{""A"": 1}}", new JsonSerializationParameters {DisableValidation = true});
+            });
+            
+            Assert.That(ex.Message, Is.EqualTo("Input json was structurally invalid. Try with JsonValidationType=[Standard or Simple]"));
+        }
+
+        [Test]
+        public void TryFromJson_ToTestClassWithPrimitives_WhenInputIsInvalid_DoesNotThrow()
+        {
+            var success = false;
+            DeserializationResult result = default;
+            
+            Assert.DoesNotThrow(() =>
+            {
+                success = JsonSerialization.TryFromJson<TestClassWithPrimitives>(@"{""A"": asd}", out var container, out result);
+            });
+            
+            Assert.That(success, Is.False);
+            Assert.That(result.Exceptions.Count(), Is.EqualTo(1));
+            Assert.That(result.Exceptions.First().Payload, Is.TypeOf<InvalidJsonException>());
+        }
     }
 }

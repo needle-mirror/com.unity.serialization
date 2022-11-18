@@ -150,7 +150,7 @@ namespace Unity.Serialization.Json
             var configuration = SerializedObjectReaderConfiguration.Default;
             
             configuration.UseReadAsync = false;
-            configuration.ValidationType = parameters.Simplified ? JsonValidationType.Simple : JsonValidationType.Standard;
+            configuration.ValidationType = parameters.DisableValidation ? JsonValidationType.None : parameters.Simplified ? JsonValidationType.Simple : JsonValidationType.Standard;
             configuration.BlockBufferSize = math.max(json.Length * sizeof(char), 16);
             configuration.TokenBufferSize = math.max(json.Length / 2, 16);
             configuration.OutputBufferSize = math.max(json.Length * sizeof(char), 16);
@@ -168,7 +168,7 @@ namespace Unity.Serialization.Json
             }
 
             configuration.UseReadAsync = file.Length > 512 << 10;
-            configuration.ValidationType = parameters.Simplified ? JsonValidationType.Simple : JsonValidationType.Standard;
+            configuration.ValidationType = parameters.DisableValidation ? JsonValidationType.None : parameters.Simplified ? JsonValidationType.Simple : JsonValidationType.Standard;
             configuration.BlockBufferSize = math.min((int) file.Length, 512 << 10); // 512 kb max
             configuration.OutputBufferSize = math.min((int) file.Length, 1024 << 10); // 1 mb max
 
@@ -253,10 +253,20 @@ namespace Unity.Serialization.Json
             {
                 fixed (char* ptr = json)
                 {
-                    var reader = new SerializedObjectReader(ptr, json.Length, GetDefaultConfigurationForString(json, parameters));
+                    var reader = new SerializedObjectReader(ptr, json.Length, GetDefaultConfigurationForString(json, parameters)) { RequiresExplicitExceptionHandling = true };
                     var view = stackalloc SerializedValueView[1];
                     new ReadJob { Reader = reader, View = view }.Run();
-                    reader.CheckAndThrowInvalidJsonException();
+
+                    try
+                    {
+                        reader.CheckAndThrowInvalidJsonException();
+                    }
+                    catch (Exception e)
+                    {
+                        result = CreateResult(new List<DeserializationEvent> { new(EventType.Exception, e) });
+                        return false;
+                    }
+                    
                     var success = TryFromJson(view[0], ref container, out result, parameters);
                     reader.Dispose();
                     return success;
@@ -322,11 +332,21 @@ namespace Unity.Serialization.Json
         /// <returns>True if the deserialization succeeded; otherwise, false.</returns>
         public unsafe static bool TryFromJsonOverride<T>(FileInfo file, ref T container, out DeserializationResult result, JsonSerializationParameters parameters = default)
         {
-            using (var reader = new SerializedObjectReader(file.FullName, GetDefaultConfigurationForFile(file, parameters)))
+            using (var reader = new SerializedObjectReader(file.FullName, GetDefaultConfigurationForFile(file, parameters)) { RequiresExplicitExceptionHandling = true })
             {
                 var view = stackalloc SerializedValueView[1];
                 new ReadJob { Reader = reader, View = view }.Run();
-                reader.CheckAndThrowInvalidJsonException();
+                
+                try
+                {
+                    reader.CheckAndThrowInvalidJsonException();
+                }
+                catch (Exception e)
+                {
+                    result = CreateResult(new List<DeserializationEvent> { new(EventType.Exception, e) });
+                    return false;
+                }
+                
                 return TryFromJson(view[0], ref container, out result, parameters);
             }
         }
@@ -387,12 +407,24 @@ namespace Unity.Serialization.Json
         /// <param name="parameters">The reader parameters to use.</param>
         /// <typeparam name="T">The type to deserialize.</typeparam>
         /// <returns>True if the deserialization succeeded; otherwise, false.</returns>
-        public static bool TryFromJsonOverride<T>(Stream stream, ref T container, out DeserializationResult result, JsonSerializationParameters parameters = default)
+        public static unsafe bool TryFromJsonOverride<T>(Stream stream, ref T container, out DeserializationResult result, JsonSerializationParameters parameters = default)
         {
-            using (var reader = new SerializedObjectReader(stream, GetDefaultConfigurationForStream(stream, parameters)))
+            using (var reader = new SerializedObjectReader(stream, GetDefaultConfigurationForStream(stream, parameters)) { RequiresExplicitExceptionHandling = true })
             {
-                reader.Read(out var view);
-                return TryFromJson(view, ref container, out result, parameters);
+                var view = stackalloc SerializedValueView[1];
+                new ReadJob { Reader = reader, View = view }.Run();
+                
+                try
+                {
+                    reader.CheckAndThrowInvalidJsonException();
+                }
+                catch (Exception e)
+                {
+                    result = CreateResult(new List<DeserializationEvent> { new(EventType.Exception, e) });
+                    return false;
+                }
+                
+                return TryFromJson(view[0], ref container, out result, parameters);
             }
         }
 

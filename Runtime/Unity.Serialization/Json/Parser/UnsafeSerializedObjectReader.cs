@@ -43,8 +43,18 @@ namespace Unity.Serialization.Json
 
         bool m_CurrentBlockIsFinal;
 
+        bool m_RequiresExplicitExceptionHandling;
         bool m_IsInvalid;
         JsonValidationResult m_ValidationResult;
+
+        /// <summary>
+        /// If this flag is true. No exceptions are thrown unless <see cref="CheckAndThrowInvalidJsonException"/> is called.
+        /// </summary>
+        public bool RequiresExplicitExceptionHandling
+        {
+            get => m_RequiresExplicitExceptionHandling;
+            set => m_RequiresExplicitExceptionHandling = value;
+        }
         
         static PackedBinaryStream OpenBinaryStreamWithConfiguration(SerializedObjectReaderConfiguration configuration, Allocator label)
         {
@@ -106,6 +116,7 @@ namespace Unity.Serialization.Json
             m_CurrentBlockIsFinal = false;
             m_IsInvalid = false;
             m_ValidationResult = default;
+            m_RequiresExplicitExceptionHandling = false;
         }
         
         public UnsafeSerializedObjectReader(char* buffer, int length, SerializedObjectReaderConfiguration configuration, Allocator label = SerializationConfiguration.DefaultAllocatorLabel)
@@ -151,6 +162,7 @@ namespace Unity.Serialization.Json
             m_CurrentBlockIsFinal = false;
             m_IsInvalid = false;
             m_ValidationResult = default;
+            m_RequiresExplicitExceptionHandling = false;
         }
 
         public void Dispose()
@@ -476,8 +488,19 @@ namespace Unity.Serialization.Json
         
         void Validate()
         {
-            if (!m_JsonValidator.IsCreated) 
+            if (!m_JsonValidator.IsCreated)
+            {
+                // When running without proper validation we rely on the tokenizer to check if the input is valid.
+                if (m_JsonTokenizer.ResultCode == JsonTokenizer.ResultInvalidInput)
+                {
+                    m_IsInvalid = true;
+                    
+                    if (!m_RequiresExplicitExceptionHandling)
+                        CheckAndThrowInvalidJsonException();
+                }
+                
                 return;
+            }
 
             m_ValidationResult = m_JsonValidator.Validate(m_CurrentBlock, 0, m_CurrentBlock.Length);
 
@@ -496,7 +519,9 @@ namespace Unity.Serialization.Json
                 else
                 {
                     m_IsInvalid = true;
-                    CheckAndThrowInvalidJsonException();
+                    
+                    if (!m_RequiresExplicitExceptionHandling)
+                        CheckAndThrowInvalidJsonException();
                 }
             }
         }
@@ -506,10 +531,19 @@ namespace Unity.Serialization.Json
         {
             if (m_IsInvalid)
             {
-                throw new InvalidJsonException(m_ValidationResult)
+                if (m_JsonValidator.IsCreated)
                 {
-                    Line = m_ValidationResult.LineCount,
-                    Character = m_ValidationResult.CharCount
+                    throw new InvalidJsonException(m_ValidationResult)
+                    {
+                        Line = m_ValidationResult.LineCount,
+                        Character = m_ValidationResult.CharCount
+                    };
+                }
+
+                throw new InvalidJsonException($"Input json was structurally invalid. Try with {nameof(JsonValidationType)}=[Standard or Simple]")
+                {
+                    Line = -1,
+                    Character = -1
                 };
             }
         }

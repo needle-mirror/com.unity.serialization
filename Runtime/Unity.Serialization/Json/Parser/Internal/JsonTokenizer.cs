@@ -498,6 +498,11 @@ namespace Unity.Serialization.Json
         readonly Allocator m_Label;
         [NativeDisableUnsafePtrRestriction] UnsafeJsonTokenizer* m_Data;
 
+        /// <summary>
+        /// Returns the result code from the last tokenize call.
+        /// </summary>
+        public int ResultCode => m_Data->ResultCode;
+
         public JsonTokenizer(Allocator label = SerializationConfiguration.DefaultAllocatorLabel)
         {
             m_Label = label;

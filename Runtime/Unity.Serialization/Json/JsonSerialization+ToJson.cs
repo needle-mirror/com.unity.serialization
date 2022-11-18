@@ -27,7 +27,7 @@ namespace Unity.Serialization.Json
         /// <returns>A json string.</returns>
         public static string ToJson<T>(T value, JsonSerializationParameters parameters = default)
         {
-            using (var writer = new JsonWriter(parameters.InitialCapacity, Allocator.Temp, new JsonWriterOptions {Minified = parameters.Minified, Simplified = parameters.Simplified}))
+            using (var writer = new JsonWriter(parameters.InitialCapacity, Allocator.Temp, new JsonWriterOptions {Minified = parameters.Minified, Simplified = parameters.Simplified, Indent = parameters.Indent}))
             {
                 ToJson(writer, value, parameters);
                 return writer.ToString();

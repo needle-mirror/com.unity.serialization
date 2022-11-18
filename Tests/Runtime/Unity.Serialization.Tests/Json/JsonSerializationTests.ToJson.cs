@@ -187,5 +187,19 @@ namespace Unity.Serialization.Json.Tests
                 Assert.That("[1,2,3,4,5]", Is.EqualTo(UnFormat(JsonSerialization.ToJson(view["Int32List"]))));
             }
         }
+
+        [Test]
+        public void ToJson_ClassWithObjectField_WithCustomIndent_ReturnsCorrectlyFormattedString()
+        {
+            var json = JsonSerialization.ToJson(new ClassWithObjectField { Value = new TestStruct {A = 10, B = 32} }, new JsonSerializationParameters {Minified = false, Indent = 2});
+            Assert.That(json, Is.EqualTo(
+@"{
+  ""Value"": {
+    ""$type"": ""Unity.Serialization.Json.Tests.JsonSerializationTests+TestStruct, Unity.Serialization.Tests"",
+    ""A"": 10,
+    ""B"": 32
+  }
+}".Replace("\r\n", "\n")));
+        }
     }
 }

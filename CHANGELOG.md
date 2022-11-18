@@ -4,6 +4,21 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2022-11-16
+### Changed
+* Updated minimum Unity version to `2022.2`.
+* Updated `com.unity.collections` to version `2.1.0-pre.2`.
+* Removed dependency on `com.unity.jobs`.
+* Removed dependency on `com.unity.properties`.
+
+### Added
+* Added `JsonSerializationParameters.Indent` to optionally provide a custom indent.
+* Added `JsonSerializationParameters.DisableValidation` to optionally disable the validation pass.
+* Added `SerializedObjectReader.RequiresExplicitExceptionHandling` to allow disabling exceptions when the reader is run from job threads.
+
+### Fixed
+* Fixed SJSON validation errors.
+
 ## [2.1.1] - 2022-09-29
 ### Changed
 * Removed `[NotBurstCompatible]` and `[BurstCompatible]` attributes to support newer versions of collections.

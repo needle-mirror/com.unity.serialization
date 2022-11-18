@@ -121,10 +121,10 @@ namespace Unity.Serialization.Json
                             switch (m_Stack.Peek())
                             {
                                 case JsonType.BeginObject:
-                                    m_Expected = JsonType.ValueSeparator | JsonType.EndObject;
+                                    m_Expected = JsonType.Value | JsonType.ValueSeparator | JsonType.EndObject;
                                     break;
                                 case JsonType.BeginArray:
-                                    m_Expected = JsonType.ValueSeparator | JsonType.EndArray;
+                                    m_Expected = JsonType.Value | JsonType.ValueSeparator | JsonType.EndArray;
                                     break;
                                 default:
                                     m_Expected = JsonType.EOF;
@@ -151,10 +151,10 @@ namespace Unity.Serialization.Json
                             switch (m_Stack.Peek())
                             {
                                 case JsonType.BeginObject:
-                                    m_Expected = JsonType.ValueSeparator | JsonType.EndObject;
+                                    m_Expected = JsonType.Value | JsonType.ValueSeparator | JsonType.EndObject;
                                     break;
                                 case JsonType.BeginArray:
-                                    m_Expected = JsonType.ValueSeparator | JsonType.EndArray;
+                                    m_Expected = JsonType.Value | JsonType.ValueSeparator | JsonType.EndArray;
                                     break;
                                 default:
                                     m_Expected = JsonType.EOF;
@@ -294,7 +294,7 @@ namespace Unity.Serialization.Json
                     
                             case JsonType.BeginArray:
                             {
-                                m_Expected = JsonType.ValueSeparator | JsonType.EndArray;
+                                m_Expected = JsonType.Value | JsonType.ValueSeparator | JsonType.EndArray;
                             }
                             break;
                     
@@ -305,10 +305,10 @@ namespace Unity.Serialization.Json
                                 switch (m_Stack.Peek())
                                 {
                                     case JsonType.BeginObject:
-                                        m_Expected = JsonType.ValueSeparator | JsonType.EndObject;
+                                        m_Expected = JsonType.Value | JsonType.ValueSeparator | JsonType.EndObject;
                                         break;
                                     case JsonType.BeginArray:
-                                        m_Expected = JsonType.ValueSeparator | JsonType.EndArray;
+                                        m_Expected = JsonType.Value | JsonType.ValueSeparator | JsonType.EndArray;
                                         break;
                                     default:
                                         m_Expected = JsonType.Undefined;
@@ -359,7 +359,7 @@ namespace Unity.Serialization.Json
 
                             case JsonType.BeginArray:
                             {
-                                m_Expected = JsonType.ValueSeparator | JsonType.EndArray;
+                                m_Expected = JsonType.Value | JsonType.ValueSeparator | JsonType.EndArray;
                             }
                                 break;
 
@@ -370,13 +370,13 @@ namespace Unity.Serialization.Json
                                 switch (m_Stack.Peek())
                                 {
                                     case JsonType.Undefined:
-                                        m_Expected = JsonType.String | JsonType.ValueSeparator | JsonType.EOF;
+                                        m_Expected = JsonType.Value | JsonType.ValueSeparator | JsonType.EOF;
                                         break;
                                     case JsonType.BeginObject:
-                                        m_Expected = JsonType.String | JsonType.ValueSeparator | JsonType.EndObject | JsonType.EOF;
+                                        m_Expected = JsonType.Value | JsonType.ValueSeparator | JsonType.EndObject | JsonType.EOF;
                                         break;
                                     case JsonType.BeginArray:
-                                        m_Expected = JsonType.ValueSeparator | JsonType.EndArray;
+                                        m_Expected = JsonType.Value | JsonType.ValueSeparator | JsonType.EndArray;
                                         break;
                                 }
                             }

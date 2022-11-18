@@ -85,6 +85,17 @@ namespace Unity.Serialization.Json
     /// </summary>
     public struct JsonSerializationParameters
     {
+        [Flags]
+        enum Overrides
+        {
+            None = 1 << 0,
+            Indent = 1 << 1
+        }
+
+        Overrides m_Overrides;
+        
+        int m_Indent;
+        
         /// <summary>
         /// By default, a polymorphic root type will have it's assembly qualified type name written to the output in the "$type" field.
         /// Use this parameter to provide a known root type at both serialize and deserialize time to avoid writing this information OR
@@ -145,6 +156,24 @@ namespace Unity.Serialization.Json
         /// Use this parameter to write simplified json.
         /// </summary>
         public bool Simplified { get; set; }
+        
+        /// <summary>
+        /// Use this parameter to disable the validation step. This can increase performance.
+        /// </summary>
+        public bool DisableValidation { get; set; }
+        
+        /// <summary>
+        /// The indent value to use when writing.
+        /// </summary>
+        public int Indent
+        {
+            readonly get => (Overrides.Indent & m_Overrides) != 0 ? m_Indent : 4;
+            set
+            {
+                m_Overrides |= Overrides.Indent;
+                m_Indent = value;
+            }
+        }
         
         /// <summary>
         /// Sets the state object for serialization. This can be used to share resources across multiple calls to serialize and deserialize.

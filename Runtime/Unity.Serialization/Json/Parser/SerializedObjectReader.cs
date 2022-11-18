@@ -81,6 +81,15 @@ namespace Unity.Serialization.Json
         readonly Allocator m_Label;
         [NativeDisableUnsafePtrRestriction] UnsafeSerializedObjectReader* m_Data;
         
+        /// <summary>
+        /// If this flag is true. No exceptions are thrown unless <see cref="CheckAndThrowInvalidJsonException"/> is called.
+        /// </summary>
+        public bool RequiresExplicitExceptionHandling
+        {
+            get => m_Data->RequiresExplicitExceptionHandling;
+            set => m_Data->RequiresExplicitExceptionHandling = value;
+        }
+        
         static PackedBinaryStream OpenBinaryStreamWithConfiguration(SerializedObjectReaderConfiguration configuration, Allocator label)
         {
             if (configuration.TokenBufferSize < 16)

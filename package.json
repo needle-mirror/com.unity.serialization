@@ -1,9 +1,9 @@
 {
   "name": "com.unity.serialization",
   "displayName": "Serialization",
-  "version": "2.1.1-exp.1",
-  "unity": "2021.3",
-  "unityRelease": "0f1",
+  "version": "3.0.0-pre.1",
+  "unity": "2022.2",
+  "unityRelease": "0a18",
   "description": "Use Unity's Serialization to serialize and deserialize from/to JSON and Binary formats.",
   "keywords": [
     "serialization",
@@ -12,18 +12,16 @@
     "unity"
   ],
   "dependencies": {
-    "com.unity.collections": "1.4.0",
+    "com.unity.collections": "2.1.0-pre.2",
     "com.unity.burst": "1.7.2",
-    "com.unity.jobs": "0.70.0-preview.7",
-    "com.unity.properties": "2.1.0-exp.2",
     "com.unity.test-framework.performance": "2.8.0-preview"
   },
   "upmCi": {
-    "footprint": "4b79489e509e06eddde4aa6ab572182126fd84eb"
+    "footprint": "c046888a730d1f14e285899fe4701c6d70e71847"
   },
   "repository": {
     "url": "https://github.cds.internal.unity3d.com/unity/com.unity.properties.git",
     "type": "git",
-    "revision": "f21dc5cb5fa2aadea275dd1c8889d43f09938d9f"
+    "revision": "713ee4b31a2d4bad63ef5122fb5a1765d7acabc4"
   }
 }

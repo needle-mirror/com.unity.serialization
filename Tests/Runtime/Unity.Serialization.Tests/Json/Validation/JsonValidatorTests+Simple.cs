@@ -17,8 +17,13 @@ namespace Unity.Serialization.Json.Tests
         [TestCase("a = { b : q }", true, JsonType.EOF, JsonType.EOF, 1, 14)]
         [TestCase(@"""a""", true, JsonType.MemberSeparator | JsonType.EOF, JsonType.EOF, 1, 4)]
         [TestCase(@"a b", false, JsonType.MemberSeparator, JsonType.Value, 1, 3)]
-        [TestCase(@"a : ""b:a""", true,  JsonType.ValueSeparator | JsonType.String | JsonType.EOF, JsonType.EOF, 1, 10)]
+        [TestCase(@"a : ""b:a""", true,  JsonType.ValueSeparator | JsonType.Value | JsonType.EOF, JsonType.EOF, 1, 10)]
         [TestCase(@"{""test"": -3.814697E-06}", true,  JsonType.EOF, JsonType.EOF, 1, 24)]
+        [TestCase(@"{a = 1 c = 2}", true,  JsonType.EOF, JsonType.EOF, 1, 14)]
+        [TestCase(@"a = [1 2]", true,  JsonType.EOF, JsonType.EOF, 1, 10)]
+        [TestCase(@"a = [{ b = 1 c = 2}, {d = 3 e = 4}]", true,  JsonType.EOF, JsonType.EOF, 1, 36)]
+        [TestCase(@"{a = 1} c = 2}", false, JsonType.EOF, JsonType.Value, 1, 9)]
+        [TestCase(@"a = [1 2", false,  JsonType.EndArray | JsonType.ValueSeparator | JsonType.Value, JsonType.EOF, 1, 9)]
         public unsafe void JsonValidatorSimple_Validate(string json, bool valid, JsonType expected, JsonType actual, int line, int character)
         {
             using (var validator = new JsonValidator(JsonValidationType.Simple, Allocator.TempJob))
@@ -105,7 +110,7 @@ namespace Unity.Serialization.Json.Tests
         [TestCase("a = { b : q }", true, JsonType.EOF, JsonType.EOF, 1, 14)]
         [TestCase(@"""a""", true, JsonType.MemberSeparator | JsonType.EOF, JsonType.EOF, 1, 4)]
         [TestCase(@"a b", false, JsonType.MemberSeparator, JsonType.Value, 1, 3)]
-        [TestCase(@"a : ""b:a""", true,  JsonType.ValueSeparator | JsonType.String | JsonType.EOF, JsonType.EOF, 1, 10)]
+        [TestCase(@"a : ""b:a""", true,  JsonType.ValueSeparator | JsonType.Value | JsonType.EOF, JsonType.EOF, 1, 10)]
         [TestCase(@"{""test"": -3.814697E-06}", true,  JsonType.EOF, JsonType.EOF, 1, 24)]
         public unsafe void JsonValidatorSimple_IsBurstCompatible(string json, bool valid, JsonType expected, JsonType actual, int line, int character)
         {
@@ -129,6 +134,5 @@ namespace Unity.Serialization.Json.Tests
                 Assert.AreEqual(character, result.CharCount);
             }
         }
-
     }
 }
