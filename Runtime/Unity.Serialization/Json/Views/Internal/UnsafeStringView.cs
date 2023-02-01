@@ -88,47 +88,9 @@ namespace Unity.Serialization.Json.Unsafe
             var buffer = m_Stream->GetBufferPtr<byte>(m_TokenIndex);
             
             var len = *(int*) buffer;
-            var ptr = (char*) (buffer + sizeof(int));
-            
-            var chars = stackalloc char[len];
-            var charIndex = 0;
+            var chars = (char*) (buffer + sizeof(int));
 
-            for (var i = 0; i < len; i++)
-            {
-                if (ptr[i] == '\\')
-                {
-                    i++;
-
-                    switch (ptr[i])
-                    {
-                        case '\\':
-                            chars[charIndex] = '\\';
-                            break;
-                        case '\"':
-                            chars[charIndex] = '"';
-                            break;
-                        case 't':
-                            chars[charIndex] = '\t';
-                            break;
-                        case 'r':
-                            chars[charIndex] = '\r';
-                            break;
-                        case 'n':
-                            chars[charIndex] = '\n';
-                            break;
-                        case 'b':
-                            chars[charIndex] = '\b';
-                            break;
-                    }
-
-                    charIndex++;
-                    continue;
-                }
-
-                chars[charIndex++] = ptr[i];
-            }
-
-            return new string(chars, 0, charIndex);
+            return new string(chars, 0, len);
         }
         
         public SerializedStringView AsSafe() => new SerializedStringView(m_Stream, m_Stream->GetHandle(m_TokenIndex));

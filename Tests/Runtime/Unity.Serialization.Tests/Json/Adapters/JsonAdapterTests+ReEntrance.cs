@@ -33,7 +33,13 @@ namespace Unity.Serialization.Json.Tests
         {
             public void Serialize(in JsonSerializationContext<Foo> context, Foo value)
             {
-                context.Writer.WriteValue(JsonSerialization.ToJson(value).Replace('"', '\"').Replace("\n", "").Replace(" ", ""));
+                var json = JsonSerialization.ToJson(value);
+
+                json = json.Replace("\"", "\\\"");
+                json = json.Replace("\n", "");
+                json = json.Replace(" ", "");
+                
+                context.Writer.WriteValue(json);
             }
 
             public Foo Deserialize(in JsonDeserializationContext<Foo> context)

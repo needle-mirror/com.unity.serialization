@@ -240,5 +240,21 @@ namespace Unity.Serialization.Json.Tests
             Assert.That(result.Exceptions.Count(), Is.EqualTo(1));
             Assert.That(result.Exceptions.First().Payload, Is.TypeOf<InvalidJsonException>());
         }
+
+        [Test]
+        [TestCase("hello\\\\")]
+        [TestCase("hello\\\\\\\\")]
+        public void TryFromJson_StringWithEscapeCharacters_DoesNotThrow(string content)
+        {
+            TestClassWithPrimitives container = default;
+            
+            Assert.DoesNotThrow(() =>
+            {
+                var json = "{\"C\": \"" + content + "\"}";
+                container = JsonSerialization.FromJson<TestClassWithPrimitives>(json);
+            });
+            
+            Assert.That(container.C, Is.EqualTo(content));
+        }
     }
 }
