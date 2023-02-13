@@ -339,7 +339,7 @@ color = { r = 1 g = 1 b = 1 a = 1 }
                 var obj = reader.ReadObject();
 
                 Assert.IsTrue(obj.TryGetValue("a", out var a));
-                Assert.AreEqual("a\"b", a.AsStringView().ToString());
+                Assert.AreEqual("a\\\"b", a.AsStringView().ToString());
             }
         }
         

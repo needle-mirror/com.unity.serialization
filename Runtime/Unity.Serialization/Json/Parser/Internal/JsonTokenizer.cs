@@ -36,6 +36,11 @@ namespace Unity.Serialization.Json
         int m_CharBufferLength;
         int m_CharBufferPosition;
         bool m_IsEnd;
+        
+        /// <summary>
+        /// Track if the previous character is escaped. This needs to be stored to handle re-entry in streamed scenarios.
+        /// </summary>
+        bool m_NextStringCharIsEscaped;
 
         public UnsafeJsonTokenizer(Allocator allocator)
         {
@@ -48,6 +53,7 @@ namespace Unity.Serialization.Json
             m_CharBufferLength = 0;
             m_CharBufferPosition = 0;
             m_IsEnd = false;
+            m_NextStringCharIsEscaped = false;
         }
 
         public void Dispose()
@@ -65,6 +71,7 @@ namespace Unity.Serialization.Json
             m_CharBufferLength = 0;
             m_CharBufferPosition = 0;
             m_IsEnd = false;
+            m_NextStringCharIsEscaped = false;
         }
 
         /// <summary>
@@ -301,9 +308,15 @@ namespace Unity.Serialization.Json
             for (; m_CharBufferPosition < m_CharBufferLength; m_CharBufferPosition++)
             {
                 var c = m_CharBuffer[m_CharBufferPosition];
-
-                if (c == '"' && PrevChar != '\\')
+                
+                if (c == '\\')
                 {
+                    m_NextStringCharIsEscaped = !m_NextStringCharIsEscaped;
+                }
+                else if (c == '"' && !m_NextStringCharIsEscaped)
+                {
+                    m_NextStringCharIsEscaped = false;
+                    
                     m_TokenStream->Add(new Token
                     {
                         Type = TokenType.String,
@@ -313,6 +326,10 @@ namespace Unity.Serialization.Json
                     });
 
                     break;
+                }
+                else
+                {
+                    m_NextStringCharIsEscaped = false;
                 }
 
                 PrevChar = c;

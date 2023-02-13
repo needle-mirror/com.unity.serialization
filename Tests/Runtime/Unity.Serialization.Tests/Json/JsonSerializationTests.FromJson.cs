@@ -196,5 +196,37 @@ namespace Unity.Serialization.Json.Tests
                 }
             }
         }
+
+        [Test]
+        public void TryFromJson_ToTestClassWithPrimitives_WhenInputIsInvalid_DoesNotThrow()
+        {
+            var success = false;
+            DeserializationResult result = default;
+            
+            Assert.DoesNotThrow(() =>
+            {
+                success = JsonSerialization.TryFromJson<TestClassWithPrimitives>(@"{""A"": asd}", out var container, out result);
+            });
+            
+            Assert.That(success, Is.False);
+            Assert.That(result.Exceptions.Count(), Is.EqualTo(1));
+            Assert.That(result.Exceptions.First().Payload, Is.TypeOf<InvalidJsonException>());
+        }
+
+        [Test]
+        [TestCase("hello\\\\")]
+        [TestCase("hello\\\\\\\\")]
+        public void TryFromJson_StringWithEscapeCharacters_DoesNotThrow(string content)
+        {
+            TestClassWithPrimitives container = default;
+            
+            Assert.DoesNotThrow(() =>
+            {
+                var json = "{\"C\": \"" + content + "\"}";
+                container = JsonSerialization.FromJson<TestClassWithPrimitives>(json);
+            });
+            
+            Assert.That(container.C, Is.EqualTo(content));
+        }
     }
 }

@@ -253,13 +253,22 @@ namespace Unity.Serialization.Json
             {
                 fixed (char* ptr = json)
                 {
-                    var reader = new SerializedObjectReader(ptr, json.Length, GetDefaultConfigurationForString(json, parameters));
-                    var view = stackalloc SerializedValueView[1];
-                    new ReadJob { Reader = reader, View = view }.Run();
-                    reader.CheckAndThrowInvalidJsonException();
-                    var success = TryFromJson(view[0], ref container, out result, parameters);
-                    reader.Dispose();
-                    return success;
+                    using (var reader = new SerializedObjectReader(ptr, json.Length, GetDefaultConfigurationForString(json, parameters)))
+                    {
+                        var view = stackalloc SerializedValueView[1];
+                        new ReadJob { Reader = reader, View = view }.Run();
+                        try
+                        {
+                            reader.CheckAndThrowInvalidJsonException();
+                        }
+                        catch (Exception e)
+                        {
+                            result = CreateResult(new List<DeserializationEvent> { new(EventType.Exception, e) });
+                            return false;
+                        }
+                        
+                        return TryFromJson(view[0], ref container, out result, parameters);
+                    }
                 }
             }
         }
@@ -326,7 +335,17 @@ namespace Unity.Serialization.Json
             {
                 var view = stackalloc SerializedValueView[1];
                 new ReadJob { Reader = reader, View = view }.Run();
-                reader.CheckAndThrowInvalidJsonException();
+                
+                try
+                {
+                    reader.CheckAndThrowInvalidJsonException();
+                }
+                catch (Exception e)
+                {
+                    result = CreateResult(new List<DeserializationEvent> { new(EventType.Exception, e) });
+                    return false;
+                }
+                
                 return TryFromJson(view[0], ref container, out result, parameters);
             }
         }

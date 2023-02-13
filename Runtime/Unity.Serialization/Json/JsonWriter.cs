@@ -406,40 +406,8 @@ namespace Unity.Serialization.Json
                 for (var i=0; i<length; i++)
                 {
                     var c = ptr[i];
-                    switch (c)
-                    {
-                        case '\\':
-                            Write('\\');
-                            Write('\\');
-                            break;
-                        case '\"':
-                            Write('\\');
-                            Write('\"');
-                            break;
-                        case '\t':
-                            Write('\\');
-                            Write('t');
-                            break;
-                        case '\r':
-                            Write('\\');
-                            Write('r');
-                            break;
-                        case '\n':
-                            Write('\\');
-                            Write('n');
-                            break;
-                        case '\b':
-                            Write('\\');
-                            Write('b');
-                            break;
-                        case '\0':
-                            Write('\\');
-                            Write('0');
-                            break;
-                        default:
-                            Write(c);
-                            break;
-                    }
+                    
+                    Write(c);
                 }
 
                 Write('"');

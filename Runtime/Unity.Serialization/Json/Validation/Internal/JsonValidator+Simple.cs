@@ -20,6 +20,7 @@ namespace Unity.Serialization.Json
             int m_LineStart;
             JsonType m_PartialTokenType;
             int m_PartialTokenState;
+            bool m_NextStringCharIsEscaped;
 
             void Break(JsonType actual)
             {
@@ -344,9 +345,15 @@ namespace Unity.Serialization.Json
                 while (m_CharBufferPosition < CharBufferLength)
                 {
                     var c = CharBuffer[m_CharBufferPosition];
-
-                    if (c == '"' && m_PrevChar != '\\')
+                    
+                    if (c == '\\')
                     {
+                        m_NextStringCharIsEscaped = !m_NextStringCharIsEscaped;
+                    }
+                    else if (c == '"' && !m_NextStringCharIsEscaped)
+                    {
+                        m_NextStringCharIsEscaped = false;
+                        
                         switch (m_Stack.Peek())
                         {
                             case JsonType.Undefined:
@@ -384,6 +391,10 @@ namespace Unity.Serialization.Json
                         }
 
                         return k_ResultSuccess;
+                    }
+                    else
+                    {
+                        m_NextStringCharIsEscaped = false;
                     }
 
                     m_PrevChar = c;

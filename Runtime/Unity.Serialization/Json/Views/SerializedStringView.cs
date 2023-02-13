@@ -87,10 +87,10 @@ namespace Unity.Serialization.Json
         /// <returns>true if the value of the value parameter is the same as the value of this view; otherwise, false.</returns>
         public bool Equals<T>(T other) where T : unmanaged, INativeList<byte>, IUTF8Bytes
         {
-            var ptr = m_Stream->GetBufferPtr<byte>(m_Handle);
+            var buffer = m_Stream->GetBufferPtr<byte>(m_Handle);
 
-            var length = *(int*)ptr;
-            var chars = (char*) (ptr + sizeof(int));
+            var length = *(int*)buffer;
+            var chars = (char*) (buffer + sizeof(int));
 
             return UTF8ArrayUnsafeUtility.StrCmp(other.GetUnsafePtr(), other.Length, chars, length) == 0;
         }
@@ -102,13 +102,10 @@ namespace Unity.Serialization.Json
         public override string ToString()
         {
             var buffer = m_Stream->GetBufferPtr<byte>(m_Handle);
-            var ptr = (char*) (buffer + sizeof(int));
             var len = *(int*) buffer;
-            var chars = stackalloc char[len];
+            var chars = (char*) (buffer + sizeof(int));
 
-            CopyAndRemoveSpecialCharacters(ptr, len, chars, out var charIndex);
-
-            return new string(chars, 0, charIndex);
+            return new string(chars, 0, len);
         }
         
         /// <summary>
@@ -119,14 +116,11 @@ namespace Unity.Serialization.Json
         public T AsFixedString<T>() where T : unmanaged, INativeList<byte>, IUTF8Bytes
         {
             var buffer = m_Stream->GetBufferPtr<byte>(m_Handle);
-            var ptr = (char*) (buffer + sizeof(int));
             var len = *(int*) buffer;
-            var chars = stackalloc char[len];
-
-            CopyAndRemoveSpecialCharacters(ptr, len, chars, out var charIndex);
+            var chars = (char*) (buffer + sizeof(int));
 
             var str = new T();
-            var error = Unicode.Utf16ToUtf8(chars, charIndex, str.GetUnsafePtr(), out var utf8Length, str.Capacity);
+            var error = Unicode.Utf16ToUtf8(chars, len, str.GetUnsafePtr(), out var utf8Length, str.Capacity);
             
             if (error != ConversionError.None)
                 throw new Exception("ConversionError");
@@ -143,14 +137,11 @@ namespace Unity.Serialization.Json
         public NativeText AsNativeText(Allocator allocator)
         {
             var buffer = m_Stream->GetBufferPtr<byte>(m_Handle);
-            var ptr = (char*) (buffer + sizeof(int));
             var len = *(int*) buffer;
-            var chars = stackalloc char[len];
+            var chars = (char*) (buffer + sizeof(int));
 
-            CopyAndRemoveSpecialCharacters(ptr, len, chars, out var charIndex);
-
-            var text = new NativeText(charIndex, allocator);
-            var error = Unicode.Utf16ToUtf8(chars, charIndex, text.GetUnsafePtr(), out var utf8Length, charIndex);
+            var text = new NativeText(len, allocator);
+            var error = Unicode.Utf16ToUtf8(chars, len, text.GetUnsafePtr(), out var utf8Length, len);
             text.Length = utf8Length;
             
             if (error != ConversionError.None)
@@ -168,60 +159,17 @@ namespace Unity.Serialization.Json
         public UnsafeText AsUnsafeText(Allocator allocator)
         {
             var buffer = m_Stream->GetBufferPtr<byte>(m_Handle);
-            var ptr = (char*) (buffer + sizeof(int));
             var len = *(int*) buffer;
-            var chars = stackalloc char[len];
+            var chars = (char*) (buffer + sizeof(int));
 
-            CopyAndRemoveSpecialCharacters(ptr, len, chars, out var charIndex);
-
-            var text = new UnsafeText(charIndex, allocator);
-            var error = Unicode.Utf16ToUtf8(chars, charIndex, text.GetUnsafePtr(), out var utf8Length, charIndex);
+            var text = new UnsafeText(len, allocator);
+            var error = Unicode.Utf16ToUtf8(chars, len, text.GetUnsafePtr(), out var utf8Length, len);
             text.Length = utf8Length;
             
             if (error != ConversionError.None)
                 throw new Exception("ConversionError");
             
             return text;
-        }
-
-        static void CopyAndRemoveSpecialCharacters(char* ptr, int len, char* chars, out int charIndex)
-        {
-            charIndex = 0;
-        
-            for (var i = 0; i < len; i++)
-            {
-                if (ptr[i] == '\\')
-                {
-                    i++;
-
-                    switch (ptr[i])
-                    {
-                        case '\\':
-                            chars[charIndex] = '\\';
-                            break;
-                        case '\"':
-                            chars[charIndex] = '\"';
-                            break;
-                        case '\t':
-                            chars[charIndex] = '\t';
-                            break;
-                        case '\r':
-                            chars[charIndex] = '\r';
-                            break;
-                        case '\n':
-                            chars[charIndex] = '\n';
-                            break;
-                        case '\b':
-                            chars[charIndex] = '\b';
-                            break;
-                    }
-
-                    charIndex++;
-                    continue;
-                }
-
-                chars[charIndex++] = ptr[i];
-            }
         }
         
         internal UnsafeStringView AsUnsafe() => new UnsafeStringView(m_Stream, m_Stream->GetTokenIndex(m_Handle));
