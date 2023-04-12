@@ -1,7 +1,7 @@
 {
   "name": "com.unity.serialization",
   "displayName": "Serialization",
-  "version": "3.0.0-pre.2",
+  "version": "3.0.0-pre.3",
   "unity": "2022.2",
   "unityRelease": "0a18",
   "description": "Use Unity's Serialization to serialize and deserialize from/to JSON and Binary formats.",
@@ -14,18 +14,18 @@
   "dependencies": {
     "com.unity.collections": "2.1.0-pre.2",
     "com.unity.burst": "1.7.2",
-    "com.unity.test-framework.performance": "2.8.0-preview"
+    "com.unity.test-framework.performance": "3.0.0-pre.1"
   },
   "_upm": {
-    "changelog": "### Fixed\n* Fixed tokenization error when reading strings ending with escape character."
+    "changelog": "### Changed\n* Updated `com.unity.test-framework.performance` to version `3.0.0-pre.1`."
   },
   "upmCi": {
-    "footprint": "08a8858e6535acd67133d936400e5e827803b0ca"
+    "footprint": "57357729d9e7df1b0a74648f828380be8e30bee5"
   },
   "documentationUrl": "https://docs.unity3d.com/Packages/com.unity.serialization@3.0/manual/index.html",
   "repository": {
     "url": "https://github.cds.internal.unity3d.com/unity/com.unity.properties.git",
     "type": "git",
-    "revision": "b0a97eca2e3cebc4c3d8f9e169ba0fdf3c772648"
+    "revision": "5282ac75f422dc970d767836b58d1326680ab730"
   }
 }
