@@ -2,6 +2,7 @@ using System;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using System.IO;
+using UnityEngine.Serialization;
 
 namespace Unity.Serialization.Json
 {    
@@ -60,6 +61,11 @@ namespace Unity.Serialization.Json
         public JsonValidationType ValidationType;
 
         /// <summary>
+        /// Indicates if escape characters should be stripped when reading strings.
+        /// </summary>
+        public bool StripStringEscapeCharacters;
+
+        /// <summary>
         /// The default parameters used by the <see cref="SerializedObjectReader"/>.
         /// </summary>
         public static readonly SerializedObjectReaderConfiguration Default = new SerializedObjectReaderConfiguration
@@ -69,7 +75,8 @@ namespace Unity.Serialization.Json
             TokenBufferSize = 1024,
             OutputBufferSize = 4096,
             NodeBufferSize = 128,
-            ValidationType = JsonValidationType.Standard
+            ValidationType = JsonValidationType.Standard,
+            StripStringEscapeCharacters = true
         };
     }
     

@@ -27,7 +27,7 @@ namespace Unity.Serialization.Json
         /// <returns>A json string.</returns>
         public static string ToJson<T>(T value, JsonSerializationParameters parameters = default)
         {
-            using (var writer = new JsonWriter(parameters.InitialCapacity, Allocator.Temp, new JsonWriterOptions {Minified = parameters.Minified, Simplified = parameters.Simplified, Indent = parameters.Indent}))
+            using (var writer = new JsonWriter(parameters.InitialCapacity, Allocator.Temp, new JsonWriterOptions {Minified = parameters.Minified, Simplified = parameters.Simplified, Indent = parameters.Indent, StringEscapeHandling = parameters.StringEscapeHandling}))
             {
                 ToJson(writer, value, parameters);
                 return writer.ToString();
@@ -64,9 +64,9 @@ namespace Unity.Serialization.Json
             visitor.SetGlobalAdapters(GetGlobalAdapters());
             visitor.SetUserDefinedAdapters(parameters.UserDefinedAdapters);
             visitor.SetGlobalMigrations(GetGlobalMigrations());
-            visitor.SetUserDefinedMigration(parameters.UserDefinedMigrations);
+            visitor.SetUserDefinedMigration(parameters.UserDefinedMigrations); 
             visitor.SetSerializedReferences(serializedReferences);
-            
+
             using (visitor.Lock()) PropertyContainer.Accept(visitor, ref container);
 
             if (null == parameters.State && null != serializedReferences) serializedReferences.Clear();

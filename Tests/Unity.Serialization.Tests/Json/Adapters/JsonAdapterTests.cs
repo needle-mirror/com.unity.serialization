@@ -2,6 +2,7 @@
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using Unity.Properties;
+using Unity.Serialization.Tests;
 using UnityEngine;
 
 namespace Unity.Serialization.Json.Tests
@@ -303,6 +304,52 @@ namespace Unity.Serialization.Json.Tests
             var json = JsonSerialization.ToJson(src, jsonSerializationParameters);
 
             Assert.That(UnFormat(json), Is.EqualTo(@"{""Value"":{""a"":10,""b"":[""hello"",""world""],""c"":{""x"":1,""y"":2,""z"":3}}}"));
+        }
+
+        class ClassWithString
+        {
+            public string s;
+        }
+
+        class StringSuffixAdapter : IJsonAdapter<string>
+        {
+            public string Suffix;
+            
+            public void Serialize(in JsonSerializationContext<string> context, string value)
+            {
+                context.Writer.WriteValue(value + Suffix);
+            }
+
+            public string Deserialize(in JsonDeserializationContext<string> context)
+            {
+                var value = context.ContinueVisitation();
+                return value[..^Suffix.Length];
+            }
+        }
+
+        [Test]
+        public void SerializeAndDeserialize_WithStringAdapter_AdapterIsCalled()
+        {
+            var jsonSerializationParameters = new JsonSerializationParameters
+            {
+                UserDefinedAdapters = new List<IJsonAdapter>
+                {
+                    new StringSuffixAdapter { Suffix = " adapter"}
+                }
+            };
+
+            var src = new ClassWithString
+            {
+                s = "hello"
+            };
+
+            var json = JsonSerialization.ToJson(src, jsonSerializationParameters);
+            
+            Assert.That(UnFormat(json), Is.EqualTo(@"{""s"":""hello adapter""}"));
+
+            var dst = JsonSerialization.FromJson<ClassWithString>(json, jsonSerializationParameters);
+            
+            Assert.That(src.s, Is.EqualTo(dst.s));
         }
 
         static string UnFormat(string json)

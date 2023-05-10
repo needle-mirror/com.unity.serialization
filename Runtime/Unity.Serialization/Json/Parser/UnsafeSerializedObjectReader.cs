@@ -103,7 +103,10 @@ namespace Unity.Serialization.Json
             
             m_NodeParser = new NodeParser(m_JsonTokenStream, configuration.NodeBufferSize, label);
             m_PackedBinaryStream = output;
-            m_PackedBinaryWriter = new PackedBinaryWriter(m_JsonTokenStream, m_PackedBinaryStream, label);
+            m_PackedBinaryWriter = new PackedBinaryWriter(m_JsonTokenStream, m_PackedBinaryStream, label)
+            {
+                StripStringEscapeCharacters = configuration.StripStringEscapeCharacters
+            };
 
             var reader = configuration.UseReadAsync 
                 ? (IUnsafeStreamBlockReader) new AsyncBlockReader(input, configuration.BlockBufferSize, leaveInputOpen) 
@@ -153,7 +156,10 @@ namespace Unity.Serialization.Json
             
             m_NodeParser = new NodeParser(m_JsonTokenStream, configuration.NodeBufferSize, label);
             m_PackedBinaryStream = output;
-            m_PackedBinaryWriter = new PackedBinaryWriter(m_JsonTokenStream, m_PackedBinaryStream, label);
+            m_PackedBinaryWriter = new PackedBinaryWriter(m_JsonTokenStream, m_PackedBinaryStream, label)
+            {
+                StripStringEscapeCharacters = configuration.StripStringEscapeCharacters
+            };
 
             m_StreamBlockReader = default;
             

@@ -28,7 +28,7 @@ namespace Unity.Serialization.Json
         void IJsonAdapter<float>.Serialize(in JsonSerializationContext<float> context, float value) => context.Writer.WriteValue(value);
         void IJsonAdapter<double>.Serialize(in JsonSerializationContext<double> context, double value) => context.Writer.WriteValue(value);
         void IJsonAdapter<bool>.Serialize(in JsonSerializationContext<bool> context, bool value) => context.Writer.WriteValueLiteral(value ? "true" : "false");
-        void IJsonAdapter<char>.Serialize(in JsonSerializationContext<char> context, char value) => context.Writer.WriteValue(value);
+        void IJsonAdapter<char>.Serialize(in JsonSerializationContext<char> context, char value) => context.Writer.WriteValue((int) value);
         void IJsonAdapter<string>.Serialize(in JsonSerializationContext<string> context, string value) => context.Writer.WriteValue(value);
         
         sbyte IJsonAdapter<sbyte>.Deserialize(in JsonDeserializationContext<sbyte> context) 

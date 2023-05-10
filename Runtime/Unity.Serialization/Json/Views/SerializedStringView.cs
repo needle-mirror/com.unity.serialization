@@ -102,12 +102,12 @@ namespace Unity.Serialization.Json
         public override string ToString()
         {
             var buffer = m_Stream->GetBufferPtr<byte>(m_Handle);
+            var ptr = (char*) (buffer + sizeof(int));
             var len = *(int*) buffer;
-            var chars = (char*) (buffer + sizeof(int));
 
-            return new string(chars, 0, len);
+            return new string(ptr, 0, len);
         }
-        
+
         /// <summary>
         /// Allocates and returns a new FixedString instance based on the view.
         /// </summary>
@@ -116,11 +116,11 @@ namespace Unity.Serialization.Json
         public T AsFixedString<T>() where T : unmanaged, INativeList<byte>, IUTF8Bytes
         {
             var buffer = m_Stream->GetBufferPtr<byte>(m_Handle);
+            var ptr = (char*) (buffer + sizeof(int));
             var len = *(int*) buffer;
-            var chars = (char*) (buffer + sizeof(int));
 
             var str = new T();
-            var error = Unicode.Utf16ToUtf8(chars, len, str.GetUnsafePtr(), out var utf8Length, str.Capacity);
+            var error = Unicode.Utf16ToUtf8(ptr, len, str.GetUnsafePtr(), out var utf8Length, str.Capacity);
             
             if (error != ConversionError.None)
                 throw new Exception("ConversionError");
@@ -137,11 +137,11 @@ namespace Unity.Serialization.Json
         public NativeText AsNativeText(Allocator allocator)
         {
             var buffer = m_Stream->GetBufferPtr<byte>(m_Handle);
+            var ptr = (char*) (buffer + sizeof(int));
             var len = *(int*) buffer;
-            var chars = (char*) (buffer + sizeof(int));
 
             var text = new NativeText(len, allocator);
-            var error = Unicode.Utf16ToUtf8(chars, len, text.GetUnsafePtr(), out var utf8Length, len);
+            var error = Unicode.Utf16ToUtf8(ptr, len, text.GetUnsafePtr(), out var utf8Length, len);
             text.Length = utf8Length;
             
             if (error != ConversionError.None)
@@ -149,7 +149,6 @@ namespace Unity.Serialization.Json
             
             return text;
         }
-        
         
         /// <summary>
         /// Allocates and returns a new <see cref="UnsafeText"/> instance based on the view.
@@ -159,11 +158,11 @@ namespace Unity.Serialization.Json
         public UnsafeText AsUnsafeText(Allocator allocator)
         {
             var buffer = m_Stream->GetBufferPtr<byte>(m_Handle);
+            var ptr = (char*) (buffer + sizeof(int));
             var len = *(int*) buffer;
-            var chars = (char*) (buffer + sizeof(int));
 
             var text = new UnsafeText(len, allocator);
-            var error = Unicode.Utf16ToUtf8(chars, len, text.GetUnsafePtr(), out var utf8Length, len);
+            var error = Unicode.Utf16ToUtf8(ptr, len, text.GetUnsafePtr(), out var utf8Length, len);
             text.Length = utf8Length;
             
             if (error != ConversionError.None)
@@ -171,7 +170,7 @@ namespace Unity.Serialization.Json
             
             return text;
         }
-        
+
         internal UnsafeStringView AsUnsafe() => new UnsafeStringView(m_Stream, m_Stream->GetTokenIndex(m_Handle));
     }
 }

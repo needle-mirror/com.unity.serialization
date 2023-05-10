@@ -4,6 +4,21 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.1.1] - 2023-05-10
+### Changed
+* Updated `com.unity.collections` to version `2.1.4`.
+
+## [3.1.0] - 2023-04-26
+### Added
+* Added `JsonSerializationParameters.StringEscapeHandling` to optionally disable escape character handling. The default value is true.
+
+### Changed
+* Updated `com.unity.collections` to version `2.1.2`.
+* Updated `JsonSerialization` to allow primitive and string types to be adapted using `IJsonAdapter{T}`.
+
+### Removed
+* Removed dependency on `com.unity.test-framework.performance`.
+
 ## [3.0.0-pre.3] - 2023-04-12
 ### Changed
 * Updated `com.unity.test-framework.performance` to version `3.0.0-pre.1`.

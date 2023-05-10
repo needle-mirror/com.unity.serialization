@@ -201,5 +201,27 @@ namespace Unity.Serialization.Json.Tests
   }
 }".Replace("\r\n", "\n")));
         }
+        
+        [Test]
+        [TestCase("a\\")]
+        [TestCase("b\\\"")]
+        [TestCase("c \\ \"def\"")]
+        public void ToJson_StringEscapeHandlingTrue_AddsEscapeCharacters(string content)
+        {
+            var container = new TestClassWithPrimitives { C = content };
+            var json = JsonSerialization.ToJson(container, new JsonSerializationParameters { StringEscapeHandling = true });
+            var escaped = content.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            Assert.That(UnFormat(json), Is.EqualTo($"{{\"A\":0,\"B\":0,\"C\":\"{escaped}\"}}"));
+        }
+        
+        [Test]
+        [TestCase("hello\\\\")]
+        [TestCase("hello\\\\\\\\")]
+        public void ToJson_StringEscapeHandlingFalse_DoesNotAddEscapeCharacters(string content)
+        {
+            var container = new TestClassWithPrimitives { C = content };
+            var json = JsonSerialization.ToJson(container, new JsonSerializationParameters { StringEscapeHandling = false });
+            Assert.That(UnFormat(json), Is.EqualTo($"{{\"A\":0,\"B\":0,\"C\":\"{content}\"}}"));
+        }
     }
 }

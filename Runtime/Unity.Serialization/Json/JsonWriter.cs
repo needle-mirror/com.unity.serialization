@@ -14,12 +14,14 @@ namespace Unity.Serialization.Json
         enum Overrides
         {
             None = 1 << 0,
-            Indent = 1 << 1
+            Indent = 1 << 1,
+            StringEscapeHandling = 1 << 2
         }
 
         Overrides m_Overrides;
         
         int m_Indent;
+        bool m_StringEscapeHandling;
 
         /// <summary>
         /// Gets or sets the value indicating whether the <see cref="JsonWriter"/> should skip formatting the output. This skips indentation, newlines and whitespace.
@@ -41,6 +43,19 @@ namespace Unity.Serialization.Json
             {
                 m_Overrides |= Overrides.Indent;
                 m_Indent = value;
+            }
+        }
+        
+        /// <summary>
+        /// Defines how special characters should be escaped when writing strings.
+        /// </summary>
+        public bool StringEscapeHandling
+        {
+            readonly get => (Overrides.StringEscapeHandling & m_Overrides) == 0 || m_StringEscapeHandling;
+            set
+            {
+                m_Overrides |= Overrides.StringEscapeHandling;
+                m_StringEscapeHandling = value;
             }
         }
     }
@@ -424,12 +439,53 @@ namespace Unity.Serialization.Json
                 }
                 
                 Write('"');
-
-                for (var i=0; i<length; i++)
+                
+                if (m_Options.StringEscapeHandling)
                 {
-                    var c = ptr[i];
+                    for (var i=0; i<length; i++)
+                    {
+                        var c = ptr[i];
                     
-                    Write(c);
+                        switch (c)
+                        {
+                            case '\\':
+                                Write('\\');
+                                Write('\\');
+                                break;
+                            case '\"':
+                                Write('\\');
+                                Write('"');
+                                break;
+                            case '\t':
+                                Write('\\');
+                                Write('t');
+                                break;
+                            case '\r':
+                                Write('\\');
+                                Write('r');
+                                break;
+                            case '\n':
+                                Write('\\');
+                                Write('n');
+                                break;
+                            case '\b':
+                                Write('\\');
+                                Write('b');
+                                break;
+                            case '\0':
+                                Write('\\');
+                                Write('0');
+                                break;
+                            default:
+                                Write(c);
+                                break;
+                        }
+                    }
+                }
+                else
+                {
+                    for (var i=0; i<length; i++)
+                        Write(ptr[i]);
                 }
 
                 Write('"');

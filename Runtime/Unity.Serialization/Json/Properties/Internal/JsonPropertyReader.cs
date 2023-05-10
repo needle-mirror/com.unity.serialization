@@ -192,6 +192,9 @@ namespace Unity.Serialization.Json
         SerializedReferences m_SerializedReferences;
         SerializedContainerMetadata m_Metadata;
         readonly SerializedTypeProvider m_SerializedTypeProvider;
+        
+        bool m_HasPrimitiveOrStringGlobalAdapters;
+        bool m_HasPrimitiveOrStringUserDefinedAdapters;
 
         public void SetView(UnsafeValueView view)
             => m_View = view;
@@ -203,10 +206,16 @@ namespace Unity.Serialization.Json
             => m_DisableRootAdapters = disableRootAdapters;
 
         public void SetGlobalAdapters(List<IJsonAdapter> adapters)
-            => m_Adapters.Global = adapters;
+        {
+            m_Adapters.Global = adapters;
+            m_HasPrimitiveOrStringGlobalAdapters = JsonAdapterCollection.ContainsPrimitiveOrStringAdapter(adapters);
+        }
 
         public void SetUserDefinedAdapters(List<IJsonAdapter> adapters)
-            => m_Adapters.UserDefined = adapters;
+        {
+            m_Adapters.UserDefined = adapters;
+            m_HasPrimitiveOrStringUserDefinedAdapters = JsonAdapterCollection.ContainsPrimitiveOrStringAdapter(adapters);
+        }
 
         public void SetGlobalMigrations(List<IJsonMigration> migrations)
             => m_Migrations.Global = migrations;
@@ -492,13 +501,25 @@ namespace Unity.Serialization.Json
 
         internal void ReadValue<TValue>(ref TValue value, UnsafeValueView view, bool isRoot = false)
         {
-            var runAdapters = !(isRoot && m_DisableRootAdapters);
+            var filter = JsonAdapterFilter.All;
 
-            // Special check so we have higher perf for primitives.
-            if (runAdapters && !TypeTraits<TValue>.IsPrimitiveOrString)
-                ReadValueWithAdapters(ref value, view, m_Adapters.GetEnumerator(), isRoot);
-            else 
-                ReadValueWithoutAdapters(ref value, view, isRoot);
+            if (isRoot && m_DisableRootAdapters)
+            {
+                filter = JsonAdapterFilter.None;
+            }
+            else if (TypeTraits<TValue>.IsPrimitiveOrString)
+            {
+                // Never run the internal adapter for primitives, it's handled by the reader directly.
+                filter &= ~JsonAdapterFilter.Internal;
+
+                if (!m_HasPrimitiveOrStringGlobalAdapters)
+                    filter &= ~JsonAdapterFilter.Global;
+
+                if (!m_HasPrimitiveOrStringUserDefinedAdapters)
+                    filter &= ~JsonAdapterFilter.UserDefined;
+            }
+
+            ReadValueWithAdapters(ref value, view, m_Adapters.GetEnumerator(filter), isRoot);
         }
 
         internal void ReadValueWithAdapters<TValue>(ref TValue value, UnsafeValueView view, JsonAdapterCollection.Enumerator adapters, bool isRoot = false)

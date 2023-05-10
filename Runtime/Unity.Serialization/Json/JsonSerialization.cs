@@ -79,7 +79,7 @@ namespace Unity.Serialization.Json
         internal void ClearDeserializationEvents()
             => m_DeserializationEvents?.Clear();
     }
-    
+
     /// <summary>
     /// Custom parameters to use for json serialization or deserialization.
     /// </summary>
@@ -89,12 +89,14 @@ namespace Unity.Serialization.Json
         enum Overrides
         {
             None = 1 << 0,
-            Indent = 1 << 1
+            Indent = 1 << 1,
+            StringEscapeHandling = 1 << 2,
         }
 
         Overrides m_Overrides;
         
         int m_Indent;
+        bool m_StringEscapeHandling;
         
         /// <summary>
         /// By default, a polymorphic root type will have it's assembly qualified type name written to the output in the "$type" field.
@@ -172,6 +174,19 @@ namespace Unity.Serialization.Json
             {
                 m_Overrides |= Overrides.Indent;
                 m_Indent = value;
+            }
+        }
+        
+        /// <summary>
+        /// If set to to true, an escape character is added before special tokens and removed upon deserialization; default value is true.
+        /// </summary>
+        public bool StringEscapeHandling
+        {
+            readonly get => (Overrides.StringEscapeHandling & m_Overrides) == 0 || m_StringEscapeHandling;
+            set
+            {
+                m_Overrides |= Overrides.StringEscapeHandling;
+                m_StringEscapeHandling = value;
             }
         }
         

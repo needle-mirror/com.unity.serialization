@@ -154,6 +154,7 @@ namespace Unity.Serialization.Json
             configuration.BlockBufferSize = math.max(json.Length * sizeof(char), 16);
             configuration.TokenBufferSize = math.max(json.Length / 2, 16);
             configuration.OutputBufferSize = math.max(json.Length * sizeof(char), 16);
+            configuration.StripStringEscapeCharacters = parameters.StringEscapeHandling;
 
             return configuration;
         }
@@ -171,6 +172,7 @@ namespace Unity.Serialization.Json
             configuration.ValidationType = parameters.DisableValidation ? JsonValidationType.None : parameters.Simplified ? JsonValidationType.Simple : JsonValidationType.Standard;
             configuration.BlockBufferSize = math.min((int) file.Length, 512 << 10); // 512 kb max
             configuration.OutputBufferSize = math.min((int) file.Length, 1024 << 10); // 1 mb max
+            configuration.StripStringEscapeCharacters = parameters.StringEscapeHandling;
 
             return configuration;
         }
@@ -183,6 +185,7 @@ namespace Unity.Serialization.Json
             configuration.ValidationType = parameters.Simplified ? JsonValidationType.Simple : JsonValidationType.Standard;
             configuration.BlockBufferSize = math.min((int) stream.Length, 512 << 10); // 512 kb max
             configuration.OutputBufferSize = math.min((int) stream.Length, 1024 << 10); // 1 mb max
+            configuration.StripStringEscapeCharacters = parameters.StringEscapeHandling;
 
             return configuration;
         }

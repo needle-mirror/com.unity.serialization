@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using NUnit.Framework;
 using Unity.Collections;
+using UnityEngine;
 
 namespace Unity.Serialization.Json.Tests
 {
@@ -324,8 +325,11 @@ color = { r = 1 g = 1 b = 1 a = 1 }
         }
         
         [Test]
-        [TestCase("{\"a\":\"a\\\"b\"}")]
-        public void SerializedObjectReader_Read_PartialToken_EscapedString(string json)
+        [TestCase("{\"a\":\"a\\\"b\"}", "a\"b", true)]
+        [TestCase("{\"a\":\"a\\\"b\"}", "a\\\"b", false)]
+        [TestCase("{\"a\":\"a\\\\\\\"b\"}", "a\\\"b", true)]
+        [TestCase("{\"a\":\"a\\\\\\\"b\"}", "a\\\\\\\"b", false)]
+        public void SerializedObjectReader_Read_PartialToken_EscapedString(string json, string expected, bool stripStringEscapeCharacters)
         {
             SetJson(json);
 
@@ -333,13 +337,14 @@ color = { r = 1 g = 1 b = 1 a = 1 }
 
             config.ValidationType = JsonValidationType.None;
             config.BlockBufferSize = 16; // 16 bytes | 8 characters
+            config.StripStringEscapeCharacters = stripStringEscapeCharacters;
 
             using (var reader = new SerializedObjectReader(m_Stream, config))
             {
                 var obj = reader.ReadObject();
 
                 Assert.IsTrue(obj.TryGetValue("a", out var a));
-                Assert.AreEqual("a\\\"b", a.AsStringView().ToString());
+                Assert.AreEqual(expected, a.AsStringView().ToString());
             }
         }
         

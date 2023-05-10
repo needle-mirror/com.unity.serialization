@@ -86,11 +86,9 @@ namespace Unity.Serialization.Json.Unsafe
         public override unsafe string ToString()
         {
             var buffer = m_Stream->GetBufferPtr<byte>(m_TokenIndex);
-            
             var len = *(int*) buffer;
-            var chars = (char*) (buffer + sizeof(int));
-
-            return new string(chars, 0, len);
+            var ptr = (char*) (buffer + sizeof(int));
+            return new string(ptr, 0, len);
         }
         
         public SerializedStringView AsSafe() => new SerializedStringView(m_Stream, m_Stream->GetHandle(m_TokenIndex));

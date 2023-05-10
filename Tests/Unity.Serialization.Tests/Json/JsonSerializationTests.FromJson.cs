@@ -3,7 +3,10 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using NUnit.Framework;
+using Unity.Collections;
 using Unity.Properties;
+using Unity.Serialization.Tests;
+using UnityEngine;
 
 #pragma warning disable 649
 
@@ -240,21 +243,55 @@ namespace Unity.Serialization.Json.Tests
             Assert.That(result.Exceptions.Count(), Is.EqualTo(1));
             Assert.That(result.Exceptions.First().Payload, Is.TypeOf<InvalidJsonException>());
         }
+        
+        [Test]
+        [TestCase("a\\\\")]
+        [TestCase("b\\\\\\\"")]
+        [TestCase("c \\\\ \\\"def\\\"")]
+        public void FromJson_StringEscapeHandlingTrue_RemovesEscapeCharacters(string content)
+        {
+            var json = "{\"C\": \"" + content + "\"}";
+            var container = JsonSerialization.FromJson<TestClassWithPrimitives>(json, new JsonSerializationParameters { StringEscapeHandling = true });
+            var unescaped = content.Replace("\\\"", "\"").Replace("\\\\", "\\");
+            Assert.That(container.C, Is.EqualTo(unescaped));
+        }
 
         [Test]
         [TestCase("hello\\\\")]
         [TestCase("hello\\\\\\\\")]
-        public void TryFromJson_StringWithEscapeCharacters_DoesNotThrow(string content)
+        public void FromJson_StringEscapeHandlingFalse_DoesRemoveEscapeCharacters(string content)
         {
-            TestClassWithPrimitives container = default;
-            
-            Assert.DoesNotThrow(() =>
-            {
-                var json = "{\"C\": \"" + content + "\"}";
-                container = JsonSerialization.FromJson<TestClassWithPrimitives>(json);
-            });
-            
+            var json = "{\"C\": \"" + content + "\"}";
+            var container = JsonSerialization.FromJson<TestClassWithPrimitives>(json, new JsonSerializationParameters { StringEscapeHandling = false });
             Assert.That(container.C, Is.EqualTo(content));
+        }
+
+        [Test]
+        [TestCase('a')]
+        [TestCase('0')]
+        [TestCase('/')]
+        [TestCase('\\')]
+        [TestCase('\0')]
+        [TestCase('\t')]
+        [TestCase('\t')]
+        [TestCase('\b')]
+        [TestCase('\"')]
+        [TestCase('\'')]
+        public void FromJson_ClassWithCharValue_CanBeConvertedFromStringOrInt(char value)
+        {
+            ClassWithPrimitives dst;
+
+            // Use the actual writer to apply escaping.
+            using var writer = new JsonWriter(Allocator.Temp);
+            writer.WriteValue(value);
+            
+            var jsonWithCharInString = $"{{\"CharValue\":{writer.ToString()}}}";
+            dst = JsonSerialization.FromJson<ClassWithPrimitives>(jsonWithCharInString);
+            Assert.That(dst.CharValue, Is.EqualTo(value));
+            
+            var jsonWithCharAsInt = $"{{\"CharValue\":{(int) value}}}";
+            dst = JsonSerialization.FromJson<ClassWithPrimitives>(jsonWithCharAsInt);
+            Assert.That(dst.CharValue, Is.EqualTo(value));
         }
     }
 }

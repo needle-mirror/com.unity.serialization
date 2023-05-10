@@ -4,7 +4,6 @@ using System.Runtime.InteropServices;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
-using Unity.Jobs;
 
 namespace Unity.Serialization.Json
 {
@@ -50,6 +49,7 @@ namespace Unity.Serialization.Json
         public int Position;
         public int Parent;
         public int Length;
+        public bool LastCharacterIsEscaped;
 
         public override string ToString()
         {

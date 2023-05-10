@@ -113,10 +113,13 @@ namespace Unity.Serialization.Tests
             TestChar('a');
             TestChar('0');
             TestChar('/');
+            TestChar('\\');
             TestChar('\0');
             TestChar('\t');
             TestChar('\n');
             TestChar('\b');
+            TestChar('\"');
+            TestChar('\'');
         }
     }
 }

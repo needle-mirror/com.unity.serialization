@@ -114,6 +114,9 @@ namespace Unity.Serialization.Json
         JsonMigrationCollection m_Migrations;
         SerializedReferences m_SerializedReferences;
 
+        bool m_HasPrimitiveOrStringGlobalAdapters;
+        bool m_HasPrimitiveOrStringUserDefinedAdapters;
+
         public JsonWriter Writer => m_Writer;
         
         public void SetWriter(JsonWriter writer)
@@ -124,12 +127,18 @@ namespace Unity.Serialization.Json
         
         public void SetDisableRootAdapters(bool disableRootAdapters) 
             => m_DisableRootAdapters = disableRootAdapters;
-        
-        public void SetGlobalAdapters(List<IJsonAdapter> adapters) 
-            => m_Adapters.Global = adapters;
+
+        public void SetGlobalAdapters(List<IJsonAdapter> adapters)
+        {
+            m_Adapters.Global = adapters;
+            m_HasPrimitiveOrStringGlobalAdapters = JsonAdapterCollection.ContainsPrimitiveOrStringAdapter(adapters);
+        }
         
         public void SetUserDefinedAdapters(List<IJsonAdapter> adapters) 
-            => m_Adapters.UserDefined = adapters;
+        {
+            m_Adapters.UserDefined = adapters;
+            m_HasPrimitiveOrStringUserDefinedAdapters = JsonAdapterCollection.ContainsPrimitiveOrStringAdapter(adapters);
+        }
         
         public void SetGlobalMigrations(List<IJsonMigration> migrations) 
             => m_Migrations.Global = migrations;
@@ -393,18 +402,22 @@ namespace Unity.Serialization.Json
         
         internal void WriteValue<TValue>(ref TValue value, bool isRoot = false)
         {
-            // Special handling of primitive types.
-            if (TypeTraits<TValue>.IsPrimitiveOrString)
+            var filter = JsonAdapterFilter.All;
+
+            if (isRoot && m_DisableRootAdapters)
             {
-                // This would be nice to optimize and avoid the conversion all together.
-                (m_Adapters.InternalAdapter as IJsonAdapter<TValue>).Serialize(new JsonSerializationContext<TValue>(this, default, value, isRoot), value);
-                return;
+                filter = JsonAdapterFilter.None;
+            }
+            else if (TypeTraits<TValue>.IsPrimitiveOrString)
+            {
+                if (!m_HasPrimitiveOrStringGlobalAdapters)
+                    filter &= ~JsonAdapterFilter.Global;
+
+                if (!m_HasPrimitiveOrStringUserDefinedAdapters)
+                    filter &= ~JsonAdapterFilter.UserDefined;
             }
             
-            if (!(isRoot && m_DisableRootAdapters))
-                WriteValueWithAdapters(value, m_Adapters.GetEnumerator(), isRoot);
-            else
-                WriteValueWithoutAdapters(value, isRoot);
+            WriteValueWithAdapters(value, m_Adapters.GetEnumerator(filter), isRoot);
         }
 
         internal void WriteValueWithAdapters<TValue>(TValue value, JsonAdapterCollection.Enumerator adapters, bool isRoot)
