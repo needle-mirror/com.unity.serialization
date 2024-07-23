@@ -4,6 +4,14 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [3.1.2] - 2024-07-23
+### Changed
+* Updated `com.unity.collections` to version `2.4.2`.
+* Updated minimum Unity version to `2022.3`.
+
+### Fixed
+* Fixed the way type names are exported to ensure that they can be correctly retrieved using `Type.GetType()`.
+
 ## [3.1.1] - 2023-05-10
 ### Changed
 * Updated `com.unity.collections` to version `2.1.4`.

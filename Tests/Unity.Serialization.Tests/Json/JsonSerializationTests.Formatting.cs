@@ -27,7 +27,7 @@ namespace Unity.Serialization.Json.Tests
             
             const string expected = @"{
     ""Value"": {
-        ""$type"": ""System.Collections.Generic.List`1[System.Object], mscorlib"",
+        ""$type"": ""System.Collections.Generic.List`1[[System.Object]]"",
         ""$elements"": [
             1,
             2,

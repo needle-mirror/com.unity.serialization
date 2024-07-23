@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text;
 using Unity.Properties;
 
 namespace Unity.Serialization.Json
@@ -60,8 +61,73 @@ namespace Unity.Serialization.Json
         {
             public override string Name => k_SerializedTypeKey;
             public override bool IsReadOnly => true;
-            public override string GetValue(ref SerializedType container) => $"{container.Type}, {container.Type.Assembly.GetName().Name}";
+            public override string GetValue(ref SerializedType container) => FormatFullTypeName(container.Type);
             public override void SetValue(ref SerializedType container, string value) => throw new InvalidOperationException("Property is ReadOnly.");
+
+            /// <summary>
+            /// Builds a string containing the type's FullName but accounts for nested generic type argument.
+            /// for a type T&lt;G&gt; where both types live in the namespace N of assembly A, will return N.T`1[[N.G, A]], A
+            /// whereas dotnet methods would return:
+            /// t.Name: N.T`1, lacks the generic parameters
+            /// t.AssemblyQualifiedName: N.T`1[[N.G, A, Version =1.0.0.0, Culture=neutral, PublicKeyToken=hash]], A, Version =1.0.0.0, Culture=neutral, PublicKeyToken=hash, too verbose
+            /// t.FullName: N.T`1[[N.G, A, Version =1.0.0.0, Culture=neutral, PublicKeyToken=hash]], the outer type has the right format, but the generic type arguments use the full assembly qualified name
+            /// Note that nested types are another exception - a type T2 nested in a type T should appear as N.T+T2, A
+            /// The assembly is skipped for primitives - no need to specify System.Boolean comes from mscorlib
+            /// </summary>
+            /// <param name="t">The type to format</param>
+            /// <returns>An equivalent to FullName where generic argument types also use the full name representation</returns>
+            private string FormatFullTypeName(Type t)
+            {
+                StringBuilder sb = new();
+                
+                FormatFullTypeNameRecursive(t, sb, false);
+
+                return sb.ToString();
+
+                void FormatFullTypeNameRecursive(Type t, StringBuilder sb, bool omitAssembly)
+                {
+                    if (t.IsArray)
+                    {
+                        FormatFullTypeNameRecursive(t.GetElementType(), sb, true);
+                        sb.Append("[]");
+                    }
+                    else if (t.IsNested)
+                    {
+                        // omit the assembly as we'll add it below - we want N.T+T2, A and not N.T, A+T2, A
+                        FormatFullTypeNameRecursive(t.DeclaringType, sb, true);
+                        sb.Append('+');
+                        sb.Append(t.Name);
+                    }
+                    else
+                    {
+                        if (t.Namespace == null)
+                            sb.Append(t.Name);
+                        else
+                            sb.Append(t.Namespace)
+                                .Append(".")
+                                .Append(t.Name);
+                    }
+                    if (t.IsGenericType)
+                    {
+                        // `1 is already in t.Name
+                        sb.Append( "[[");
+                        for (var index = 0; index < t.GenericTypeArguments.Length; index++)
+                        {
+                            if (index > 0)
+                                sb.Append( ", ");
+                            var typeArgument = t.GenericTypeArguments[index];
+                            FormatFullTypeNameRecursive(typeArgument,sb, false);
+                        }
+                        sb.Append( "]]");
+                    }
+
+                    if (!omitAssembly && !t.IsPrimitive && t.Assembly != typeof(int).Assembly)
+                    {
+                        sb.Append(", ");
+                        sb.Append(t.Assembly.GetName().Name);
+                    }
+                }
+            }
         }
 
         class SerializedVersionProperty : Property<SerializedVersion, int>

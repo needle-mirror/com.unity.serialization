@@ -213,7 +213,7 @@ namespace Unity.Serialization.Json.Tests
         }
         
         [Test]
-        public void FromJson_ToClassWithPrimitves_WhenInputIsInvalidWithDisabledValidation_OnlyThrowsStructuralException()
+        public void FromJson_ToClassWithPrimitives_WhenInputIsInvalidWithDisabledValidation_OnlyThrowsStructuralException()
         {
             Assert.DoesNotThrow(() =>
             {

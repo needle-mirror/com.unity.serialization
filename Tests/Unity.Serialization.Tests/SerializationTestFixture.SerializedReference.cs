@@ -8,6 +8,13 @@ namespace Unity.Serialization.Tests
     [TestFixture]
     partial class SerializationTestFixture
     {
+        internal class WithGenericsBase {}
+        [GeneratePropertyBag]
+        internal class WithGenerics<T> : WithGenericsBase
+        {
+            public T Value;
+        }
+        
         [GeneratePropertyBag]
         internal class Node : IEnumerable<Node>
         {
@@ -94,6 +101,24 @@ namespace Unity.Serialization.Tests
                     AssertThatParentReferencesAreSet(child);
                 }
             }
+        }
+        
+        [Test]
+        public void AbstractClassWithNonPrimitiveGenericsInheritor_CanBeSerializedAndDeserialized()
+        {
+            // The downcast is important to repro the bug
+            // downcasting means JsonPropertyWriter will add a $type field to the json as the actual type differs from
+            // the static type
+            // The generic argument is a non-primitive type, as those require an assembly name to be deserialized (when
+            // Type.GetType() is used, "UnityEngine.Vector3" won't work, but
+            // "UnityEngine.Vector3, UnityEngine. CoreModule" will). The previous behaviour only qualified the root type
+            // (here, WithGenerics), but not the (nested or not) generic arguments.
+            WithGenericsBase src = new WithGenerics<UnityEngine.Vector3> {Value = new(1, 2, 3)};
+
+            var dst = SerializeAndDeserialize(src);
+            
+            Assert.That(dst, Is.Not.SameAs(src));
+            Assert.That(((WithGenerics<UnityEngine.Vector3>)dst).Value, Is.EqualTo(new UnityEngine.Vector3(1,2,3)));
         }
         
         [Test]
