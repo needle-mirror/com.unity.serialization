@@ -1,5 +1,9 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using Unity.Properties;
+using UnityEngine;
 
 namespace Unity.Serialization.Tests
 {
@@ -38,6 +42,42 @@ namespace Unity.Serialization.Tests
             Assert.That(dst.FirstGeneric, Is.EqualTo(src.FirstGeneric));
             Assert.That(dst.SecondGeneric, Is.EqualTo(src.SecondGeneric));
             Assert.That(dst.BaseValue, Is.EqualTo(src.BaseValue));
+        }
+        
+        
+        public class QueueBase : MonoBehaviour
+        {
+        }
+        
+        public class QueueSlot : QueueBase
+        {
+        }
+        
+        public class QueueSlotChild : QueueSlot
+        {
+        }
+        
+        [Test] 
+        public void ClassWithMultipleComponents_CanBeSerializedAndDeserialized()
+        {
+            BlackboardVariable variable = new BlackboardVariable<QueueBase>();
+            var convertedVariable = Activator.CreateInstance(typeof(ClassWithMultipleComponents<,>).MakeGenericType(typeof(QueueBase), typeof(QueueSlot)), variable) as BlackboardVariable;
+
+            var dst = SerializeAndDeserialize(convertedVariable);
+            
+            Assert.That(dst, Is.Not.SameAs(null));
+            Assert.That(dst, Is.Not.SameAs(convertedVariable));
+        }
+        
+        [Test] 
+        public void ClassWith3MultipleComponents_CanBeSerializedAndDeserialized()
+        {
+            BlackboardVariable variable = new BlackboardVariable<QueueBase>();
+            var convertedVariable = Activator.CreateInstance(typeof(ClassWith3MultipleComponents<,,>).MakeGenericType(typeof(QueueBase), typeof(QueueSlotChild), typeof(QueueSlot)), variable) as BlackboardVariable;
+            var dst = SerializeAndDeserialize(convertedVariable);
+            
+            Assert.That(dst, Is.Not.SameAs(null));
+            Assert.That(dst, Is.Not.SameAs(convertedVariable));
         }
     }
 }

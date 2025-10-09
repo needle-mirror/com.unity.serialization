@@ -511,7 +511,7 @@ namespace Unity.Serialization.Json
             /// Writes the specified char to the buffer as a literal.
             /// </summary>
             /// <remarks>
-            /// If you need to write out a string value with quotes <seealso cref="WriteValue(char)"/>.
+            /// If you need to write out a string value with quotes <see cref="WriteValue(char)"/>.
             /// </remarks>
             /// <param name="value">The value to write.</param>
             public void WriteValueLiteral(char value)
@@ -523,7 +523,7 @@ namespace Unity.Serialization.Json
             /// Writes the specified string to the buffer as a literal.
             /// </summary>
             /// <remarks>
-            /// If you need to write out a string value with quotes <seealso cref="WriteValue(char*,int)"/>.
+            /// If you need to write out a string value with quotes <see cref="WriteValue(char*,int)"/>.
             /// </remarks>
             /// <param name="ptr">The pointer to the string value.</param>
             /// <param name="length">The length of the string value.</param>

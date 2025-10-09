@@ -370,7 +370,7 @@ namespace Unity.Serialization.Json
         /// <summary>
         /// Reads the next node as a <see cref="SerializedMemberView"/>.
         /// </summary>
-        /// <returns></returns>
+        /// <returns>A view of the serialized member.</returns>
         /// <exception cref="InvalidOperationException">The reader state is invalid.</exception>
         public SerializedMemberView ReadMember()
         {

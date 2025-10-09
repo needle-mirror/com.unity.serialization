@@ -91,6 +91,10 @@ namespace Unity.Serialization.Json.Unsafe
             return new string(ptr, 0, len);
         }
         
+        /// <summary>
+        /// Return a safe view of the unsafe string view.
+        /// </summary>
+        /// <returns>A safe view of the serialized string.</returns>
         public SerializedStringView AsSafe() => new SerializedStringView(m_Stream, m_Stream->GetHandle(m_TokenIndex));
     }
 }

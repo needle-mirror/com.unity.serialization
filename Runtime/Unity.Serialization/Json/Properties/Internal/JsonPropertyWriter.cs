@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using Unity.Properties;
+using UnityEngine;
 
 namespace Unity.Serialization.Json
 {
@@ -110,15 +111,20 @@ namespace Unity.Serialization.Json
                     if (t.IsGenericType)
                     {
                         // `1 is already in t.Name
-                        sb.Append( "[[");
+                        sb.Append( "[");
                         for (var index = 0; index < t.GenericTypeArguments.Length; index++)
                         {
                             if (index > 0)
+                            {
                                 sb.Append( ", ");
+                            }
+                            
+                            sb.Append( "[");
                             var typeArgument = t.GenericTypeArguments[index];
                             FormatFullTypeNameRecursive(typeArgument,sb, false);
+                            sb.Append( "]");
                         }
-                        sb.Append( "]]");
+                        sb.Append( "]");
                     }
 
                     if (!omitAssembly && !t.IsPrimitive && t.Assembly != typeof(int).Assembly)
@@ -522,8 +528,14 @@ namespace Unity.Serialization.Json
 #if UNITY_EDITOR
             if (TypeTraits<TValue>.IsLazyLoadReference)
             {
-                var instanceID = PropertyContainer.GetValue<TValue, int>(ref value, "m_InstanceID");
-                Writer.WriteValue(UnityEditor.GlobalObjectId.GetGlobalObjectIdSlow(instanceID).ToString());
+#if GLOBAL_OBJECT_IDENTIFIER_USING_ENTITY_ID
+                if (!PropertyContainer.TryGetValue<TValue, EntityId>(ref value, "m_EntityId", out var entityId))
+                    entityId = PropertyContainer.GetValue<TValue, int>(ref value, "m_InstanceID");
+                Writer.WriteValue(UnityEditor.GlobalObjectId.GetGlobalObjectIdSlow(entityId).ToString());
+#else
+                var instanceId = PropertyContainer.GetValue<TValue, int>(ref value, "m_InstanceID");
+                Writer.WriteValue(UnityEditor.GlobalObjectId.GetGlobalObjectIdSlow(instanceId).ToString());
+#endif
                 return;
             }
 #endif

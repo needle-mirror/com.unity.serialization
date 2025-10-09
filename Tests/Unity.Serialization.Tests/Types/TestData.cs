@@ -226,4 +226,36 @@ namespace Unity.Serialization.Tests
     {
         public int[,] MultidimensionalArrayInt32;
     }
+    
+    [GeneratePropertyBag]
+    public abstract class BlackboardVariable
+    {
+        public BlackboardVariable() { }
+    }
+
+    [GeneratePropertyBag]
+    public partial class BlackboardVariable<DataType> : BlackboardVariable
+    {
+        public BlackboardVariable() { }
+    }
+
+    [GeneratePropertyBag]
+    public class ClassWithMultipleComponents<SourceType, TargetType> : BlackboardVariable<TargetType> where SourceType : Component where TargetType : Component 
+    {
+        public SourceType SourceComponent;
+        public TargetType TargetComponent;
+        
+        public ClassWithMultipleComponents() { }
+        public ClassWithMultipleComponents(BlackboardVariable<SourceType> linkedVariable) { }
+    }
+    
+    [GeneratePropertyBag]
+    public class ClassWith3MultipleComponents<SourceType, SecondType, TargetType> : BlackboardVariable<TargetType> where SourceType : Component where TargetType : Component 
+    {
+        public SourceType SourceComponent;
+        public TargetType TargetComponent;
+        
+        public ClassWith3MultipleComponents() { }
+        public ClassWith3MultipleComponents(BlackboardVariable<SourceType> linkedVariable) { }
+    }
 }

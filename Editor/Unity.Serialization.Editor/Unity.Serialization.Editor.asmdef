@@ -12,6 +12,12 @@
     "precompiledReferences": [],
     "autoReferenced": true,
     "defineConstraints": [],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "Unity",
+            "expression": "6000.3.0a6",
+            "define": "GLOBAL_OBJECT_IDENTIFIER_USING_ENTITY_ID"
+        }
+    ],
     "noEngineReferences": false
 }

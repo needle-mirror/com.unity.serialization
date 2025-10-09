@@ -568,8 +568,14 @@ namespace Unity.Serialization.Json
 
                 if (UnityEditor.GlobalObjectId.TryParse(json, out var id))
                 {
-                    var instanceID = UnityEditor.GlobalObjectId.GlobalObjectIdentifierToInstanceIDSlow(id);
-                    PropertyContainer.SetValue(ref value, "m_InstanceID", instanceID);
+#if GLOBAL_OBJECT_IDENTIFIER_USING_ENTITY_ID
+                    var entityId = UnityEditor.GlobalObjectId.GlobalObjectIdentifierToEntityIdSlow(id);
+                    if (!PropertyContainer.TrySetValue(ref value, "m_EntityId", entityId))
+                        PropertyContainer.SetValue(ref value, "m_InstanceID", (int)entityId);
+#else
+                    var instanceId = UnityEditor.GlobalObjectId.GlobalObjectIdentifierToInstanceIDSlow(id);
+                    PropertyContainer.SetValue(ref value, "m_InstanceID", instanceId);
+#endif
                     return;
                 }
 
